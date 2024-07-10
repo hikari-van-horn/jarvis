@@ -1,0 +1,39 @@
+[tool.coverage.run]
+branch = true
+source = [ "memory" ]
+
+[tool.coverage.report]
+exclude_lines = ['if TYPE_CHECKING:']
+show_missing = true
+
+[tool.pytest.ini_options]
+addopts = "--cov --cov-report html:'../../coverage/packages/memory/html' --cov-report xml:'../../coverage/packages/memory/coverage.xml' --html='../../reports/packages/memory/unittests/html/index.html' --junitxml='../../reports/packages/memory/unittests/junit.xml'"
+
+[tool.poetry]
+name = "memory"
+version = "1.0.0"
+description = "memory module for jarvis"
+authors = [ ]
+license = 'Proprietary'
+readme = 'README.md'
+
+  [[tool.poetry.packages]]
+  include = "memory"
+
+  [tool.poetry.dependencies]
+  python = ">=3.10,<3.13"
+  gensim = "4.3.2"
+  graphrag = ">=0.1.1"
+
+
+  [tool.poetry.group.dev.dependencies]
+  autopep8 = "2.0.2"
+  flake8 = "6.0.0"
+  pytest = "7.3.1"
+  pytest-sugar = "0.9.7"
+  pytest-cov = "4.1.0"
+  pytest-html = "3.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

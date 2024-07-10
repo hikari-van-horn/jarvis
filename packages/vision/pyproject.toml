@@ -1,0 +1,36 @@
+[tool.coverage.run]
+branch = true
+source = [ "vision" ]
+
+[tool.coverage.report]
+exclude_lines = ['if TYPE_CHECKING:']
+show_missing = true
+
+[tool.pytest.ini_options]
+addopts = "--cov --cov-report html:'../../coverage/packages/vision/html' --cov-report xml:'../../coverage/packages/vision/coverage.xml' --html='../../reports/packages/vision/unittests/html/index.html' --junitxml='../../reports/packages/vision/unittests/junit.xml'"
+
+[tool.poetry]
+name = "vision"
+version = "1.0.0"
+description = "vision module for jarvis"
+authors = [ ]
+license = 'Proprietary'
+readme = 'README.md'
+
+  [[tool.poetry.packages]]
+  include = "vision"
+
+  [tool.poetry.dependencies]
+  python = ">=3.12"
+
+  [tool.poetry.group.dev.dependencies]
+  autopep8 = "2.0.2"
+  flake8 = "6.0.0"
+  pytest = "7.3.1"
+  pytest-sugar = "0.9.7"
+  pytest-cov = "4.1.0"
+  pytest-html = "3.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

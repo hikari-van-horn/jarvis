@@ -1,15 +1,15 @@
 {
-  "name": "jarvis",
-  "version": "0.0.0",
-  "license": "MIT",
-  "scripts": {},
-  "private": true,
-  "dependencies": {},
-  "devDependencies": {
-    "@nx/js": "19.4.2",
-    "nx": "19.4.2"
-  },
-  "workspaces": [
-    "packages/*"
-  ]
+    "name": "jarvis",
+    "version": "0.0.0",
+    "license": "MIT",
+    "scripts": {},
+    "private": true,
+    "devDependencies": {
+        "@nx/js": "19.4.2",
+        "@nxlv/python": "^18.1.0",
+        "nx": "19.4.2"
+    },
+    "workspaces": [
+        "packages/*"
+    ]
 }

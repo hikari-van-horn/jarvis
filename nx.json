@@ -1,5 +1,6 @@
 {
-  "extends": "nx/presets/npm.json",
-  "$schema": "./node_modules/nx/schemas/nx-schema.json",
-  "nxCloudAccessToken": "M2FkY2Q3MmUtNTQxMi00MDdkLTk2NDYtOTBjNTdiOTIzMzI0fHJlYWQtd3JpdGU="
+    "extends": "nx/presets/npm.json",
+    "$schema": "./node_modules/nx/schemas/nx-schema.json",
+    "nxCloudAccessToken": "M2FkY2Q3MmUtNTQxMi00MDdkLTk2NDYtOTBjNTdiOTIzMzI0fHJlYWQtd3JpdGU=",
+    "plugins": ["@nxlv/python"]
 }
