@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "jarvis"
+version = "0.1.0"
+description = "Discord AI Agent"
+authors = ["Author <author@example.com>"]
+readme = "README.md"
+packages = [
+    { include = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+discord-py = "^2.7.0"
+openai = "^2.24.0"
+python-dotenv = "^1.2.1"
+langchain = "^1.2.10"
+langchain-openai = "^1.1.10"
+langgraph = "^1.0.10"
+protobuf = "^7.34.0"
+qdrant-client = {extras = ["fastembed"], version = "^1.17.0"}
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

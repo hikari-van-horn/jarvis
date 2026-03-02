@@ -1,0 +1,48 @@
+{
+  "user_id": "sim-jarvis-1974",
+  "metadata": {
+    "summary": "High-net-worth individual, AI expert, and quant veteran.",
+    "trust_score": 1.0
+  },
+  "schemas": {
+    "demographics": {
+      "identity": {
+        "preferred_name": "Jarvis/老贾",
+        "legal_name": "Jarvis",
+        "gender": "male",
+        "birth_date": "1974-12-12",
+        "astrology": "Sagittarius"
+      },
+      "location": { "home": "Shanghai, China", "current": "Shanghai" },
+      "education": [
+        { "degree": "PhD", "major": "Computer Science/AI", "institution": "MIT", "year": 2005 },
+        { "degree": "Master", "major": ["CS", "Finance"], "institution": "University of Toronto", "year": 1999, "mentor": "Geoffrey Hinton" },
+        { "degree": "Bachelor", "major": ["Mathematics", "Economics"], "institution": "Tsinghua University", "year": 1996 }
+      ]
+    },
+    "preferences": {
+      "communication": {
+        "language": ["Chinese", "English"],
+        "expected_depth": "expert_level"
+      },
+      "interests": ["Mathematics", "AI", "Quant Trading", "Computer Science"]
+    },
+    "work_context": {
+      "professional_roles": [
+        { "title": "VP & Engineering Fellow", "org": "Google", "since": 2010 },
+        { "title": "Distinguished Researcher", "org": "Google", "since": 2005 }
+      ],
+      "private_ventures": {
+        "role": "Founder/Fund Manager",
+        "entity": "Private Equity Fund",
+        "aum": "1.5 billion USD (as of 2010)",
+        "track_record": "50%+ annual return"
+      },
+      "expertise_tags": ["AI Models", "Quant Strategies", "Financial Tech", "Distributed Systems"]
+    },
+    "financial_profile": {
+      "status": "Ultra High Net Worth / Financial Freedom",
+      "strategy_preference": "AI-driven Quant"
+    }
+  }
+}
