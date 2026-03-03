@@ -1,74 +1,503 @@
+"""
+Multi-agent pipeline for Jarvis.
+
+Pipeline
+--------
+START
+  └── gatekeeper_node   (fetch user memory + LLM decision)
+        ├── [trigger=True]  → extractor_node  (extract facts & update SurrealDB)
+        │                         └── core_agent_node  (conversation)
+        └── [trigger=False] → core_agent_node (conversation)
+                                    └── END
+"""
+
 import os
+import json
+import re
 import logging
-from typing import TypedDict, Annotated
+from contextlib import AsyncExitStack
+from typing import TypedDict, Annotated, Literal
 
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
-from langgraph.graph import StateGraph, START, END, MessagesState
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage, BaseMessage
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 
 from src.config import OPENAI_API_KEY, OPENAI_BASE_URL
+from src.agent.memory.store import MemoryStore
+from src.agent.memory.conversation_store import ConversationStore
 
 logger = logging.getLogger("agent")
 
-def load_prompt(agent_name:str, template_name: str, **kwargs) -> str:
-    """Loads a prompt template from the prompts directory and formats it."""
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def load_prompt(agent_name: str, template_name: str, **kwargs) -> str:
+    """Load a prompt template and substitute {{variable}} placeholders.
+
+    Uses ``{{variable}}`` (double-brace) syntax so that literal JSON braces
+    inside the templates are never accidentally consumed by Python's
+    ``str.format()``.
+    """
     prompt_path = os.path.join(os.path.dirname(__file__), agent_name, template_name)
     try:
         with open(prompt_path, "r", encoding="utf-8") as f:
             template = f.read()
-            return template.format(**kwargs)
-    except Exception as e:
-        logger.error(f"Error loading prompt {template_name}: {e}")
+        for key, value in kwargs.items():
+            template = template.replace("{{" + key + "}}", str(value))
+        return template
+    except Exception as exc:
+        logger.error("Error loading prompt %s: %s", template_name, exc)
         return "You are a helpful AI assistant."
 
-class DiscordAgentGraph:
-    def __init__(self):
-        self.memory = MemorySaver()
+
+def _load_file(path: str) -> str:
+    """Read a file to string; return empty string on failure."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception:
+        return ""
+
+
+def _parse_json_from_llm(text: str) -> dict | list | None:
+    """Strip markdown code fences and parse the first JSON object or array."""
+    text = re.sub(r"```(?:json)?\s*", "", text).strip("`").strip()
+    for opener, closer in [('[', ']'), ('{', '}')]:
+        start = text.find(opener)
+        if start == -1:
+            continue
+        depth = 0
+        for i, ch in enumerate(text[start:], start):
+            if ch == opener:
+                depth += 1
+            elif ch == closer:
+                depth -= 1
+            if depth == 0:
+                try:
+                    return json.loads(text[start : i + 1])
+                except json.JSONDecodeError:
+                    break
+    return None
+
+
+# ---------------------------------------------------------------------------
+# MCP client manager
+# ---------------------------------------------------------------------------
+
+MCP_SSE_URL = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:8001/sse")
+
+
+class MCPClientManager:
+    """Maintains a persistent SSE connection to the local MCP server.
+
+    Tools are loaded once and reused for the lifetime of the agent.
+    Call ``get_tools()`` to lazily connect and retrieve the tool list.
+    Call ``close()`` to cleanly shut down the connection.
+    """
+
+    def __init__(self, url: str = MCP_SSE_URL) -> None:
+        self._url = url
+        self._tools: list | None = None
+        self._exit_stack: AsyncExitStack | None = None
+
+    async def get_tools(self) -> list:
+        """Return cached tools, connecting to the MCP server on first call."""
+        if self._tools is not None:
+            return self._tools
+        try:
+            from mcp.client.sse import sse_client
+            from mcp import ClientSession
+            from langchain_mcp_adapters.tools import load_mcp_tools
+
+            stack = AsyncExitStack()
+            read, write = await stack.enter_async_context(sse_client(self._url))
+            session = await stack.enter_async_context(ClientSession(read, write))
+            await session.initialize()
+            self._tools = await load_mcp_tools(session)
+            self._exit_stack = stack
+            logger.info(
+                "MCPClientManager: loaded %d tools from %s",
+                len(self._tools),
+                self._url,
+            )
+        except Exception as exc:
+            logger.warning(
+                "MCPClientManager: could not connect to MCP server (%s) — "
+                "tool-calling will be disabled for this session.",
+                exc,
+            )
+            self._tools = []
+        return self._tools
+
+    async def close(self) -> None:
+        """Close the MCP SSE connection."""
+        if self._exit_stack:
+            await self._exit_stack.aclose()
+            self._exit_stack = None
+            self._tools = None
+
+
+# ---------------------------------------------------------------------------
+# LangGraph state
+# ---------------------------------------------------------------------------
+
+class AgentState(TypedDict):
+    # Persistent conversation history — add_messages APPENDS each update
+    messages: Annotated[list, add_messages]
+    # Per-turn context
+    user_id: str
+    user_name: str
+    user_input: str
+    platform: str
+    # Set by gatekeeper_node
+    gatekeeper_result: dict | None
+    # Fetched/updated across nodes; NOT stored in the LangGraph checkpointer
+    # (SurrealDB is the source of truth for long-term memory)
+    user_memory: dict | None
+    # Short-term memory: SurrealDB conversation session
+    conversation_id: str | None        # str form of RecordID
+    persisted_history: list | None     # recent BaseMessage objects loaded from SurrealDB
+
+
+# ---------------------------------------------------------------------------
+# Agent
+# ---------------------------------------------------------------------------
+
+class AgentWIthWorkflow:
+    """LangGraph-based multi-agent pipeline with SurrealDB-backed long-term memory."""
+
+    # Proto schema text — loaded once at class level for the extractor prompt
+    _PROTO_SCHEMA: str = _load_file(
+        os.path.join(os.path.dirname(__file__), "memory", "persona.proto")
+    )
+
+    def __init__(self, agent_id: str = 'jarvis') -> None:
+        self.agent_id = agent_id
+        self.memory_saver = MemorySaver()
+        self.memory_store = MemoryStore()
+        self.conversation_store = ConversationStore()
+        self.mcp_client = MCPClientManager()
+
+        # Conversational LLM (slightly creative)
         self.llm = ChatOpenAI(
             api_key=OPENAI_API_KEY or "dummy_key_if_not_set",
             base_url=OPENAI_BASE_URL if OPENAI_BASE_URL else None,
             model="deepseek-chat",
-            temperature=0.7
+            temperature=0.7,
         )
-        
-        # Build the state graph
-        graph_builder = StateGraph(MessagesState)
-        graph_builder.add_node("chatbot", self._chatbot_node)
-        graph_builder.add_edge(START, "chatbot")
-        graph_builder.add_edge("chatbot", END)
-        
-        self.app = graph_builder.compile(checkpointer=self.memory)
+        # Structured extraction / classification (deterministic)
+        self.llm_precise = ChatOpenAI(
+            api_key=OPENAI_API_KEY or "dummy_key_if_not_set",
+            base_url=OPENAI_BASE_URL if OPENAI_BASE_URL else None,
+            model="deepseek-chat",
+            temperature=0.0,
+        )
 
-    async def _chatbot_node(self, state: MessagesState):
-        response = await self.llm.ainvoke(state["messages"])
+        # ------------------------------------------------------------------
+        # Build the state graph
+        # ------------------------------------------------------------------
+        graph = StateGraph(AgentState)
+        graph.add_node("gatekeeper", self._gatekeeper_node)
+        graph.add_node("extractor", self._extractor_node)
+        graph.add_node("core_agent", self._core_agent_node)
+
+        graph.add_edge(START, "gatekeeper")
+        graph.add_conditional_edges(
+            "gatekeeper",
+            self._route_after_gatekeeper,
+            {"extract": "extractor", "respond": "core_agent"},
+        )
+        graph.add_edge("extractor", "core_agent")
+        graph.add_edge("core_agent", END)
+
+        self.app = graph.compile(checkpointer=self.memory_saver)
+
+    # ------------------------------------------------------------------
+    # Routing
+    # ------------------------------------------------------------------
+
+    def _route_after_gatekeeper(
+        self, state: AgentState
+    ) -> Literal["extract", "respond"]:
+        result = state.get("gatekeeper_result") or {}
+        if result.get("trigger") is True:
+            logger.info(
+                "Gatekeeper triggered memory update | category=%s | %s",
+                result.get("category"),
+                result.get("reasoning"),
+            )
+            return "extract"
+        return "respond"
+
+    # ------------------------------------------------------------------
+    # Node: Gatekeeper
+    # ------------------------------------------------------------------
+
+    async def _gatekeeper_node(self, state: AgentState) -> dict:
+        """Fetch user memory from SurrealDB and decide if this turn needs a memory update."""
+        user_id = state["user_id"]
+        user_input = state["user_input"]
+        platform = state.get("platform", "discord")
+
+        # 1. Fetch current user memory from SurrealDB
+        try:
+            await self.memory_store.connect()
+            user_memory = await self.memory_store.get_user_memory(user_id)
+        except Exception as exc:
+            logger.error("gatekeeper: memory fetch failed: %s", exc)
+            user_memory = None
+
+        # 2. Ensure the conversation session exists and load recent history from SurrealDB.
+        conversation_id = None
+        persisted_history: list[BaseMessage] = []
+        try:
+            await self.conversation_store.connect()
+            conversation_id = await self.conversation_store.get_or_create_conversation(
+                user_id, platform, agent_id="jarvis"
+            )
+            persisted_history = await self.conversation_store.load_as_langchain_messages(
+                conversation_id, limit=50
+            )
+            logger.debug(
+                "gatekeeper: loaded %d messages from conversation %s",
+                len(persisted_history),
+                conversation_id,
+            )
+        except Exception as exc:
+            logger.warning("gatekeeper: conversation fetch failed: %s", exc)
+
+        # 3. Build a brief conversation context for the gatekeeper
+        # Prefer persisted history; fall back to LangGraph in-memory state.
+        context_messages = persisted_history[-6:] if persisted_history else list(state.get("messages", []))[-6:]
+        lines = []
+        for m in context_messages:
+            role = "User" if isinstance(m, HumanMessage) else "Assistant"
+            lines.append(f"{role}: {m.content}")
+        lines.append(f"User: {user_input}")
+        gatekeeper_input = "\n".join(lines)
+
+        prompt = load_prompt(
+            "memory", "prompts/gatekeeper.md", input=gatekeeper_input
+        )
+
+        # 3. Call the gatekeeper LLM
+        try:
+            response = await self.llm_precise.ainvoke(
+                [HumanMessage(content=prompt)]
+            )
+            gatekeeper_result = _parse_json_from_llm(response.content)
+            if not isinstance(gatekeeper_result, dict):
+                logger.warning(
+                    "gatekeeper: unparseable response: %s", response.content[:300]
+                )
+                gatekeeper_result = {
+                    "trigger": False,
+                    "category": None,
+                    "reasoning": "parse error",
+                }
+        except Exception as exc:
+            logger.error("gatekeeper LLM call failed: %s", exc)
+            gatekeeper_result = {
+                "trigger": False,
+                "category": None,
+                "reasoning": str(exc),
+            }
+
+        return {
+            "user_memory": user_memory,
+            "gatekeeper_result": gatekeeper_result,
+            "conversation_id": str(conversation_id) if conversation_id else None,
+            "persisted_history": persisted_history,
+        }
+
+    # ------------------------------------------------------------------
+    # Node: Extractor
+    # ------------------------------------------------------------------
+
+    async def _extractor_node(self, state: AgentState) -> dict:
+        """Extract structured facts from the user's input and persist them to SurrealDB."""
+        user_id = state["user_id"]
+        user_input = state["user_input"]
+        current_memory = state.get("user_memory") or {}
+
+        prompt = load_prompt(
+            "memory",
+            "prompts/extractor.md",
+            PROTO_SCHEMA_DOC=self._PROTO_SCHEMA,
+            CURRENT_USER_JSON=json.dumps(current_memory, ensure_ascii=False, indent=2),
+            new_input=user_input,
+        )
+
+        # 1. Call the extractor LLM
+        try:
+            response = await self.llm_precise.ainvoke(
+                [HumanMessage(content=prompt)]
+            )
+            patches = _parse_json_from_llm(response.content)
+            if not isinstance(patches, list):
+                logger.warning(
+                    "extractor: unexpected patch format: %s", response.content[:300]
+                )
+                patches = []
+        except Exception as exc:
+            logger.error("extractor LLM call failed: %s", exc)
+            patches = []
+
+        # 2. Apply JSON patches to SurrealDB
+        if patches:
+            try:
+                updated_memory = await self.memory_store.apply_patches(
+                    user_id, patches
+                )
+                logger.info(
+                    "extractor: applied %d patches for user_id=%s",
+                    len(patches),
+                    user_id,
+                )
+            except Exception as exc:
+                logger.error(
+                    "extractor: patch apply failed for user_id=%s: %s", user_id, exc
+                )
+                updated_memory = current_memory
+        else:
+            logger.info("extractor: no patches to apply for user_id=%s", user_id)
+            updated_memory = current_memory
+
+        return {"user_memory": updated_memory}
+
+    # ------------------------------------------------------------------
+    # Node: Core Agent
+    # ------------------------------------------------------------------
+
+    async def _core_agent_node(self, state: AgentState) -> dict:
+        """Main conversational node: builds a memory-aware system prompt and responds.
+
+        Supports tool-calling via the local MCP server — the LLM may invoke any
+        tool exposed by the MCP server before producing a final reply.
+        """
+        user_name = state["user_name"]
+        user_memory = state.get("user_memory") or {}
+
+        # Build a fresh system prompt every turn with the latest memory snapshot.
+        soul_prompt = load_prompt("jarvis", "soul.md")
+        memory_json = (
+            json.dumps(user_memory, ensure_ascii=False, indent=2)
+            if user_memory
+            else "No memory recorded yet."
+        )
+        sys_content = load_prompt(
+            "jarvis",
+            "system_prompt.md",
+            user_name=user_name,
+            agent_soul=soul_prompt,
+            user_memory=memory_json,
+        )
+
+        # Full message list for the LLM:
+        # system prompt + SurrealDB-persisted history (preferred) or in-memory state.
+        persisted = state.get("persisted_history") or []
+        history = persisted if persisted else list(state.get("messages", []))
+        messages_for_llm: list[BaseMessage] = [
+            SystemMessage(content=sys_content)
+        ] + history
+
+        # Load MCP tools and bind them to the LLM (cached after first call).
+        tools = await self.mcp_client.get_tools()
+        llm_with_tools = self.llm.bind_tools(tools) if tools else self.llm
+        tool_map: dict[str, object] = {t.name: t for t in tools}
+
+        # ------------------------------------------------------------------
+        # Tool-calling loop (ReAct style)
+        # The LLM may call one or more tools before producing a final answer.
+        # We loop until the model returns a message with no tool_calls.
+        # ------------------------------------------------------------------
+        response: AIMessage
+        for _ in range(10):  # guard against infinite loops
+            response = await llm_with_tools.ainvoke(messages_for_llm)
+            if not getattr(response, "tool_calls", None):
+                break  # Final answer — no more tool calls requested
+
+            # Execute each requested tool call and append the results.
+            messages_for_llm.append(response)
+            for tc in response.tool_calls:
+                tool = tool_map.get(tc["name"])
+                if tool is None:
+                    tool_result = f"Unknown tool: {tc['name']}"
+                    logger.warning("core_agent: unknown tool '%s' requested", tc["name"])
+                else:
+                    try:
+                        tool_result = await tool.ainvoke(tc["args"])
+                        logger.debug(
+                            "core_agent: tool '%s' returned: %s", tc["name"], str(tool_result)[:200]
+                        )
+                    except Exception as exc:
+                        tool_result = f"Tool error: {exc}"
+                        logger.error(
+                            "core_agent: tool '%s' raised: %s", tc["name"], exc
+                        )
+                messages_for_llm.append(
+                    ToolMessage(content=str(tool_result), tool_call_id=tc["id"])
+                )
+
+        # Persist this turn (user message + assistant reply) to SurrealDB.
+        conversation_id_str = state.get("conversation_id")
+        user_input = state.get("user_input", "")
+        if conversation_id_str:
+            try:
+                from surrealdb import RecordID as _RID
+                # RecordID can be reconstructed from its string representation.
+                conv_id = _RID(*conversation_id_str.split(":", 1)) if ":" in conversation_id_str else conversation_id_str
+                await self.conversation_store.append_message(conv_id, "user", user_input)
+                await self.conversation_store.append_message(
+                    conv_id, "assistant", response.content
+                )
+                logger.debug(
+                    "core_agent: persisted turn to conversation %s", conv_id
+                )
+            except Exception as exc:
+                logger.warning(
+                    "core_agent: failed to persist conversation turn: %s", exc
+                )
+
         return {"messages": [response]}
 
-    async def chat(self, user_id: str, user_name: str, user_input: str) -> str:
-        """Process user input through the LangGraph app and return response."""
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    async def chat(
+        self,
+        user_id: str,
+        user_name: str,
+        user_input: str,
+        platform: str = "discord",
+    ) -> str:
+        """Run the full multi-agent pipeline for one user turn and return the reply."""
         if not OPENAI_API_KEY or OPENAI_API_KEY == "your_openai_or_deepseek_api_key_here":
             return f"⚠️ API key not configured yet.\n\nYour message: {user_input}"
-            
+
         config = {"configurable": {"thread_id": str(user_id)}}
-        
-        # Check current state for thread history
-        state = self.app.get_state(config)
-        messages_to_send = []
-        
-        # If this is the first message in the thread, prepend system prompt
-        if not state.values.get("messages"):
-            soul_prompt = load_prompt("jarvis", "soul.md")
-            sys_prompt_content = load_prompt("jarvis", "system_prompt.md", user_name=user_name, agent_soul=soul_prompt)
-            messages_to_send.append(SystemMessage(content=sys_prompt_content))
-            
-        messages_to_send.append(HumanMessage(content=user_input))
-        
+
         try:
-            # Run graph asynchronously
-            # Streaming values to get final state or just calling ainvoke
-            final_state = await self.app.ainvoke({"messages": messages_to_send}, config)
-            # final_state["messages"] contains the conversation so far, return last Ai message
+            final_state = await self.app.ainvoke(
+                {
+                    "messages": [HumanMessage(content=user_input)],
+                    "user_id": user_id,
+                    "user_name": user_name,
+                    "user_input": user_input,
+                    "platform": platform,
+                    "gatekeeper_result": None,
+                    "user_memory": None,
+                    "conversation_id": None,
+                    "persisted_history": None,
+                },
+                config,
+            )
             return final_state["messages"][-1].content
-        except Exception as e:
-            logger.error(f"Error communicating with LangGraph agent: {e}")
-            return f"⚠️ I encountered an error while trying to process your request: {e}"
+        except Exception as exc:
+            logger.error("chat: pipeline error: %s", exc)
+            return f"⚠️ I encountered an error while processing your request: {exc}"

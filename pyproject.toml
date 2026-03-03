@@ -16,12 +16,24 @@ python-dotenv = "^1.2.1"
 langchain = "^1.2.10"
 langchain-openai = "^1.1.10"
 langgraph = "^1.0.10"
-protobuf = "^7.34.0"
+protobuf = ">=6.31.1,<7.0.0"
 qdrant-client = {extras = ["fastembed"], version = "^1.17.0"}
+surrealdb = "^1.0.0"
+jsonpatch = "^1.33"
+mcp = {extras = ["cli"], version = "^1.0.0"}
+langchain-mcp-adapters = "^0.1.0"
+uvicorn = "^0.34.0"
+httpx = "^0.28.0"
 
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"
+pytest-asyncio = "^1.0.0"
+grpcio-tools = "^1.76.0"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-p no:sugar"
 
 [build-system]
 requires = ["poetry-core"]

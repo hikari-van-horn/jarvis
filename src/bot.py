@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 import logging
-from src.agent.core import DiscordAgentGraph
+from src.agent.core import AgentWIthWorkflow
 
 logger = logging.getLogger('discord_bot')
 
@@ -17,7 +17,7 @@ class AIAgentBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
         
         # Instantiate the agent graph
-        self.agent_graph = DiscordAgentGraph()
+        self.agent_graph = AgentWIthWorkflow()
 
     async def setup_hook(self):
         # 启动时同步指令到 Discord (Sync commands on startup)
@@ -42,7 +42,8 @@ class AIAgentBot(discord.Client):
                 response = await self.agent_graph.chat(
                     user_id=str(message.author.id),
                     user_name=message.author.display_name,
-                    user_input=user_input
+                    user_input=user_input,
+                    platform="discord",
                 )
                 
                 # Discord 限制单次消息为2000字符 (Discord limits messages to 2000 characters)

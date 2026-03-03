@@ -3,7 +3,7 @@ from discord.ext import commands
 import logging
 
 from src.config import DISCORD_TOKEN
-from src.agent.core import DiscordAgentGraph
+from src.agent.core import AgentWIthWorkflow
 
 logger = logging.getLogger("discord_ext")
 
@@ -17,7 +17,7 @@ async def start():
     intents.members = True          # 开启成员相关权限
 
     bot = commands.Bot(command_prefix="!", intents=intents)
-    agent_graph = DiscordAgentGraph()
+    agent_graph = AgentWIthWorkflow()
     
     @bot.event
     async def on_ready():
@@ -37,7 +37,8 @@ async def start():
                 response = await agent_graph.chat(
                     user_id=str(message.author.id),
                     user_name=message.author.display_name,
-                    user_input=message.content
+                    user_input=message.content,
+                    platform="discord",
                 )
                 
                 # Discord requests must be under 2000 chars, so chunk if necessary

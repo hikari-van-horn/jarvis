@@ -19,6 +19,7 @@ Based on the new input, generate a JSON Patch (RFC 6902) to update the user's me
 3. Normalizing Enums: Map educational degrees to [BACHELOR, MASTER, PHD].
 4. Uncertainty: If the user is unsure (e.g., "I think...", "Maybe..."), add a field "confidence_score": 0.6 in the metadata.
 
+
 ## Constraint
 
 **Do not invent new keys. Only use paths defined in the Schema.**
@@ -39,3 +40,7 @@ User: "老贾我已经退休了，我现在迷上了垂钓。"
   { "op": "add", "path": "/preferences/daily_life/hobbies/-", "value": "fishing" },
   { "op": "add", "path": "/demographics/meta/last_verified_at", "value": "2026-03-02T11:47:00Z" }
 ]
+
+## New Input to Process
+
+{{new_input}}
