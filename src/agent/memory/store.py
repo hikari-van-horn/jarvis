@@ -10,6 +10,7 @@ Tables used
 
 import json
 import logging
+from datetime import datetime, date
 from typing import Any
 
 import jsonpatch
@@ -21,6 +22,66 @@ logger = logging.getLogger("agent.memory.store")
 
 
 # ---------------------------------------------------------------------------
+# Empty document skeleton — mirrors UserPersona proto structure.
+# Used to pre-seed new records so JSON Patch ops on nested paths never
+# fail with "member not found".
+# ---------------------------------------------------------------------------
+_PERSONA_SKELETON: dict = {
+    "demographics": {
+        "preferred_name": "",
+        "home_location": {"city": "", "country_code": "", "timezone": ""},
+        "education_history": [],
+        "meta": {},
+    },
+    "preferences": {
+        "languages": [],
+        "coding_preferences": {},
+        "dietary_restrictions": [],
+        "daily_life": {"hobbies": []},
+        "meta": {},
+    },
+    "work_context": {
+        "roles": [],
+        "expertise_tags": [],
+        "meta": {},
+    },
+    "financial_profile": {
+        "net_worth_bracket": "",
+        "investment_interests": [],
+        "meta": {},
+    },
+}
+
+
+def _safe_apply_patches(doc: dict, patches: list[dict]) -> dict:
+    """Apply RFC 6902 patches one at a time with best-effort fallbacks.
+
+    For each operation:
+    - Try applying as-is.
+    - If it fails and the op is ``replace``, retry as ``add`` (handles paths
+      that don't exist yet despite the skeleton).
+    - If still failing, log a warning and skip that single op so the rest
+      of the patch set is not blocked.
+    """
+    import copy
+    result = copy.deepcopy(doc)
+    for op in patches:
+        try:
+            result = jsonpatch.JsonPatch([op]).apply(result)
+        except jsonpatch.JsonPatchException as exc:
+            if op.get("op") == "replace":
+                fallback = dict(op, op="add")
+                try:
+                    result = jsonpatch.JsonPatch([fallback]).apply(result)
+                    logger.debug("_safe_apply: converted replace→add for path %s", op.get("path"))
+                    continue
+                except jsonpatch.JsonPatchException:
+                    pass
+            logger.warning("_safe_apply: skipping op %s — %s", op, exc)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -28,6 +89,24 @@ def _make_record_id(user_id: str) -> RecordID:
     """Return a SurrealDB RecordID for a given user."""
     safe = user_id.replace(":", "_").replace("`", "")
     return RecordID("user_memory", f"u_{safe}")
+
+
+def _strip_record_ids(obj):
+    """Recursively sanitise a SurrealDB document for JSON serialisation.
+
+    - Removes the top-level ``id`` key (SurrealDB internal RecordID).
+    - Converts any ``RecordID`` values to their string representation.
+    - Converts ``datetime`` / ``date`` objects to ISO-8601 strings.
+    """
+    if isinstance(obj, RecordID):
+        return str(obj)
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    if isinstance(obj, dict):
+        return {k: _strip_record_ids(v) for k, v in obj.items() if k not in ("id", "updated_at")}
+    if isinstance(obj, list):
+        return [_strip_record_ids(v) for v in obj]
+    return obj
 
 
 # ---------------------------------------------------------------------------
@@ -135,9 +214,9 @@ class MemoryStore:
         try:
             result = await self.db.select(_make_record_id(user_id))
             if result:
-                if isinstance(result, list):
-                    return result[0] if result else None
-                return result
+                raw = result[0] if isinstance(result, list) else result
+                if raw:
+                    return _strip_record_ids(raw)
         except Exception as exc:
             logger.warning("get_user_memory failed for user_id=%s: %s", user_id, exc)
         return None
@@ -149,9 +228,8 @@ class MemoryStore:
             data["user_id"] = user_id
             result = await self.db.upsert(_make_record_id(user_id), data)
             logger.info("upsert_user_memory succeeded for user_id=%s", user_id)
-            if isinstance(result, list):
-                return result[0] if result else data
-            return result if isinstance(result, dict) else data
+            raw = result[0] if isinstance(result, list) else result
+            return _strip_record_ids(raw) if isinstance(raw, dict) else _strip_record_ids(data)
         except Exception as exc:
             logger.error("upsert_user_memory failed for user_id=%s: %s", user_id, exc)
             raise
@@ -175,22 +253,20 @@ class MemoryStore:
             )
             current = {}
 
-        # Strip the SurrealDB internal 'id' field before patching
-        current.pop("id", None)
+        # Merge with the skeleton so intermediate paths always exist.
+        # Existing values win; skeleton only fills in missing keys.
+        import copy
+        base = copy.deepcopy(_PERSONA_SKELETON)
+        for key, val in current.items():
+            base[key] = val
+        current = base
 
-        try:
-            patch = jsonpatch.JsonPatch(patches)
-            updated = patch.apply(current)
-            logger.info(
-                "apply_patches: applied %d operations to user_id=%s",
-                len(patches),
-                user_id,
-            )
-        except jsonpatch.JsonPatchException as exc:
-            logger.error(
-                "apply_patches: patch failed for user_id=%s: %s", user_id, exc
-            )
-            raise
+        updated = _safe_apply_patches(current, patches)
+        logger.info(
+            "apply_patches: applied %d operations to user_id=%s",
+            len(patches),
+            user_id,
+        )
 
         return await self.upsert_user_memory(user_id, updated)
 

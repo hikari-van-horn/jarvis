@@ -7,15 +7,18 @@
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Long-term memory: user persona / facts
+-- SCHEMALESS so arbitrary persona fields (demographics, work_context, etc.)
+-- are stored without needing individual DEFINE FIELD statements.
+-- OVERWRITE ensures this DDL re-applies on every startup / schema migration.
 -- ─────────────────────────────────────────────────────────────────────────────
 
-DEFINE TABLE IF NOT EXISTS user_memory SCHEMAFULL;
+DEFINE TABLE OVERWRITE user_memory SCHEMALESS;
 
-DEFINE FIELD IF NOT EXISTS user_id   ON TABLE user_memory TYPE string;
-DEFINE FIELD IF NOT EXISTS updated_at ON TABLE user_memory TYPE datetime
+DEFINE FIELD OVERWRITE user_id    ON TABLE user_memory TYPE string;
+DEFINE FIELD OVERWRITE updated_at ON TABLE user_memory TYPE datetime
     VALUE time::now();
 
-DEFINE INDEX IF NOT EXISTS idx_user_memory_user_id
+DEFINE INDEX OVERWRITE idx_user_memory_user_id
     ON TABLE user_memory COLUMNS user_id UNIQUE;
 
 

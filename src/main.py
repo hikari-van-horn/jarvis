@@ -55,7 +55,7 @@ MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}"
 def _run_mcp_server_thread() -> None:
     """Target for the MCP-server background thread (blocking call)."""
     try:
-        from src.tools.mcp import run as run_mcp
+        from src.tools.server import run as run_mcp
 
         run_mcp(host=MCP_HOST, port=MCP_PORT)
     except Exception as exc:
@@ -144,10 +144,33 @@ async def run_extensions(ext_names: list[str]) -> None:
 # ---------------------------------------------------------------------------
 
 
+async def _init_db_schema() -> None:
+    """Apply SurrealDB schema (idempotent — safe to run on every startup)."""
+    try:
+        from src.agent.memory.store import MemoryStore
+        from src.agent.memory.conversation_store import ConversationStore
+
+        store = MemoryStore()
+        await store.connect()
+        await store.init_schema()
+        await store.close()
+
+        conv = ConversationStore()
+        await conv.connect()
+        await conv.init_schema()
+        await conv.close()
+
+        logger.info("SurrealDB schema initialised successfully.")
+    except Exception as exc:
+        logger.error("SurrealDB schema init failed: %s", exc)
+
+
 async def _main(ext_names: list[str]) -> None:
-    # 1. Always start the MCP server first.
+    # 1. Apply DB schema (OVERWRITE — safe on every startup).
+    await _init_db_schema()
+    # 2. Start the MCP server.
     await start_mcp_server()
-    # 2. Optionally start extensions.
+    # 3. Optionally start extensions.
     await run_extensions(ext_names)
 
 

@@ -31,6 +31,8 @@ from src.agent.memory.conversation_store import ConversationStore
 logger = logging.getLogger("agent")
 
 
+LLM_MODEL=os.getenv("LLM_MODEL", "deepseek-chat")
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -186,14 +188,14 @@ class AgentWIthWorkflow:
         self.llm = ChatOpenAI(
             api_key=OPENAI_API_KEY or "dummy_key_if_not_set",
             base_url=OPENAI_BASE_URL if OPENAI_BASE_URL else None,
-            model="deepseek-chat",
+            model=LLM_MODEL,
             temperature=0.7,
         )
         # Structured extraction / classification (deterministic)
         self.llm_precise = ChatOpenAI(
             api_key=OPENAI_API_KEY or "dummy_key_if_not_set",
             base_url=OPENAI_BASE_URL if OPENAI_BASE_URL else None,
-            model="deepseek-chat",
+            model=LLM_MODEL,
             temperature=0.0,
         )
 
@@ -243,10 +245,24 @@ class AgentWIthWorkflow:
         user_input = state["user_input"]
         platform = state.get("platform", "discord")
 
-        # 1. Fetch current user memory from SurrealDB
+        # 1. Fetch current user memory from SurrealDB.
+        #    If this is the user's first interaction, bootstrap a record with
+        #    the skeleton + their display name so the extractor always has a
+        #    non-empty base to patch into.
+        user_name = state.get("user_name", "")
         try:
             await self.memory_store.connect()
             user_memory = await self.memory_store.get_user_memory(user_id)
+            if user_memory is None:
+                import copy
+                from src.agent.memory.store import _PERSONA_SKELETON
+                seed = copy.deepcopy(_PERSONA_SKELETON)
+                seed["demographics"]["preferred_name"] = user_name
+                user_memory = await self.memory_store.upsert_user_memory(user_id, seed)
+                logger.info(
+                    "gatekeeper: bootstrapped new memory record for user_id=%s name=%r",
+                    user_id, user_name,
+                )
         except Exception as exc:
             logger.error("gatekeeper: memory fetch failed: %s", exc)
             user_memory = None
@@ -338,6 +354,9 @@ class AgentWIthWorkflow:
                 [HumanMessage(content=prompt)]
             )
             patches = _parse_json_from_llm(response.content)
+            # Normalise: LLM sometimes returns a single object instead of an array.
+            if isinstance(patches, dict):
+                patches = [patches]
             if not isinstance(patches, list):
                 logger.warning(
                     "extractor: unexpected patch format: %s", response.content[:300]
@@ -398,12 +417,30 @@ class AgentWIthWorkflow:
         )
 
         # Full message list for the LLM:
-        # system prompt + SurrealDB-persisted history (preferred) or in-memory state.
+        # [system] + past history (without current turn) + current HumanMessage
+        #
+        # When persisted_history is available it does NOT include the current
+        # user message (it was loaded before this turn), so we always append
+        # the current user_input explicitly.
+        # When falling back to LangGraph in-memory state, add_messages has
+        # already appended the current HumanMessage as the last item — so we
+        # drop the last element and re-add it manually for consistency.
+        user_input = state.get("user_input", "")
         persisted = state.get("persisted_history") or []
-        history = persisted if persisted else list(state.get("messages", []))
-        messages_for_llm: list[BaseMessage] = [
-            SystemMessage(content=sys_content)
-        ] + history
+        if persisted:
+            history = persisted  # does not contain the current message
+        else:
+            state_msgs = list(state.get("messages", []))
+            # Drop the trailing HumanMessage that add_messages injected so we
+            # can append it uniformly below.
+            history = state_msgs[:-1] if state_msgs else []
+
+        logger.info("core_agent: history=%d messages for user_input=%r", len(history), user_input[:60])
+        messages_for_llm: list[BaseMessage] = (
+            [SystemMessage(content=sys_content)]
+            + history
+            + [HumanMessage(content=user_input)]
+        )
 
         # Load MCP tools and bind them to the LLM (cached after first call).
         tools = await self.mcp_client.get_tools()
@@ -415,7 +452,7 @@ class AgentWIthWorkflow:
         # The LLM may call one or more tools before producing a final answer.
         # We loop until the model returns a message with no tool_calls.
         # ------------------------------------------------------------------
-        response: AIMessage
+        response: AIMessage = AIMessage(content="")  # ensure always bound
         for _ in range(10):  # guard against infinite loops
             response = await llm_with_tools.ainvoke(messages_for_llm)
             if not getattr(response, "tool_calls", None):
@@ -442,6 +479,15 @@ class AgentWIthWorkflow:
                 messages_for_llm.append(
                     ToolMessage(content=str(tool_result), tool_call_id=tc["id"])
                 )
+        else:
+            # Loop exhausted without a clean break — force a plain text reply.
+            logger.warning("core_agent: tool loop exhausted (10 iterations); forcing final text response")
+            response = await self.llm.ainvoke(messages_for_llm)
+
+        # Guard against models that return empty content (e.g. some tool-call-only responses).
+        if not response.content:
+            logger.warning("core_agent: LLM returned empty content; retrying without tools")
+            response = await self.llm.ainvoke(messages_for_llm)
 
         # Persist this turn (user message + assistant reply) to SurrealDB.
         conversation_id_str = state.get("conversation_id")

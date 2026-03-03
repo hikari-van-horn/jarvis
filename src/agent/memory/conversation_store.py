@@ -151,6 +151,7 @@ class ConversationStore:
         self,
         user_id: str,
         platform: str,
+        agent_id: str = 'jarvis',
         metadata: dict | None = None,
         gap_hours: int = NEW_SESSION_GAP_HOURS,
     ) -> RecordID:
@@ -181,11 +182,11 @@ class ConversationStore:
             """
             SELECT id, last_active_at
             FROM conversation
-            WHERE user_id = $user_id AND platform = $platform
+            WHERE user_id = $user_id AND platform = $platform AND agent_id = $agent_id
             ORDER BY last_active_at DESC
             LIMIT 1
             """,
-            {"user_id": user_id, "platform": platform},
+            {"user_id": user_id, "platform": platform, "agent_id": agent_id},
         )
 
         recent = _first_row(rows)
@@ -205,11 +206,12 @@ class ConversationStore:
                 return recent["id"]
 
         # Create a new conversation session.
-        now_iso = datetime.now(tz=timezone.utc).isoformat()
+        # now_iso = datetime.now(tz=timezone.utc).isoformat()
         new_rows = await self.db.query(
             """
             CREATE conversation CONTENT {
                 user_id:        $user_id,
+                agent_id:       $agent_id,
                 platform:       $platform,
                 started_at:     time::now(),
                 last_active_at: time::now(),
@@ -219,6 +221,7 @@ class ConversationStore:
             {
                 "user_id": user_id,
                 "platform": platform,
+                "agent_id": agent_id,
                 "metadata": metadata,
             },
         )

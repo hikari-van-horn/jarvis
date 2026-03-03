@@ -31,7 +31,7 @@ async def start():
     
         # --- 场景 1：1对1 私聊 (DM) ---
         if isinstance(message.channel, discord.DMChannel):
-            logger.info(f"收到私信: {message.content}, from: {message.author.id}")
+            logger.info(f"收到私信 from: {message.author.id}")
             
             async with message.channel.typing():
                 response = await agent_graph.chat(
