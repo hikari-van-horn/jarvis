@@ -39,6 +39,7 @@ logger = logging.getLogger("tools.server")
 import src.tools.datetime_tools          # noqa: F401  – registers get_current_datetime
 import src.tools.memory.knowledge        # noqa: F401  – registers get_user_memory
 import src.tools.memory.conversation     # noqa: F401  – registers get_recent_conversation
+import src.tools.skills                  # noqa: F401  – registers find_skills, load_skill
 
 # Pull shared instance + config after tool modules are loaded.
 from src.tools import mcp, MCP_HOST, MCP_PORT
