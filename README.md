@@ -1,6 +1,7 @@
 # Jarvis
 
 [![CI](https://github.com/hikari-van-horn/jarvis/actions/workflows/ci.yml/badge.svg)](https://github.com/hikari-van-horn/jarvis/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/hikari-van-horn/jarvis/graph/badge.svg)](https://codecov.io/gh/hikari-van-horn/jarvis)
 
 Jarvis is a conversational AI agent that lives on Discord. It is built on top of [LangGraph](https://github.com/langchain-ai/langgraph) and supports multiple LLM providers (OpenAI, Google Gemini, …). Tool use is powered by the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), and long-term memory is persisted in SurrealDB with semantic search backed by Qdrant.
 

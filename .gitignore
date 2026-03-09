@@ -12,3 +12,9 @@ build/
 data/*
 !data/**/.gitkeep
 
+# Coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
