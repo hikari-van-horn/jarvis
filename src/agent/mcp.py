@@ -1,6 +1,6 @@
 
-import os
 import logging
+import os
 from contextlib import AsyncExitStack
 
 logger = logging.getLogger("mcp")
@@ -26,9 +26,9 @@ class MCPClientManager:
         if self._tools is not None:
             return self._tools
         try:
-            from mcp.client.sse import sse_client
-            from mcp import ClientSession
             from langchain_mcp_adapters.tools import load_mcp_tools
+            from mcp import ClientSession
+            from mcp.client.sse import sse_client
 
             stack = AsyncExitStack()
             read, write = await stack.enter_async_context(sse_client(self._url))

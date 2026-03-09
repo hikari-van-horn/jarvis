@@ -24,6 +24,7 @@ async def get_recent_conversation(
         limit:    Maximum number of recent messages to return.
     """
     from langchain_core.messages import HumanMessage
+
     from src.agent.memory.conversation_store import ConversationStore
 
     store = ConversationStore()

@@ -18,7 +18,6 @@ Example SKILL.md header::
 from __future__ import annotations
 
 import logging
-import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -165,7 +164,7 @@ def load_skill(skill_name: str) -> str:
     """
     if not skill_name or not skill_name.strip():
         return "Error: skill_name must not be empty."
-    
+
     logger.info("Loading skill: '%s'", skill_name)
 
     target = skill_name.strip().lower()

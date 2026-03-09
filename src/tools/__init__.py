@@ -7,8 +7,9 @@ configuration. Tool modules import ``mcp`` from here to register their
 Tool registration is triggered by ``src.tools.server``, which explicitly
 imports each tool module in the correct order before starting the server.
 """
-from mcp.server.fastmcp import FastMCP
 from os import getenv
+
+from mcp.server.fastmcp import FastMCP
 
 # ---------------------------------------------------------------------------
 # Server instance

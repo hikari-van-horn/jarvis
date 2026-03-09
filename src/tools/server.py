@@ -36,13 +36,13 @@ logger = logging.getLogger("tools.server")
 # src.tools.__init__ (which owns `mcp`) is always imported first by Python
 # before any of these sub-imports, so there is no circular dependency.
 # ---------------------------------------------------------------------------
-import src.tools.datetime_tools          # noqa: F401  – registers get_current_datetime
-import src.tools.memory.knowledge        # noqa: F401  – registers get_user_memory
-import src.tools.memory.conversation     # noqa: F401  – registers get_recent_conversation
-import src.tools.skills                  # noqa: F401  – registers find_skills, load_skill
+import src.tools.datetime_tools  # noqa: E402, F401  – registers get_current_datetime
+import src.tools.memory.conversation  # noqa: E402, F401  – registers get_recent_conversation
+import src.tools.memory.knowledge  # noqa: E402, F401  – registers get_user_memory
+import src.tools.skills  # noqa: E402, F401  – registers find_skills, load_skill
 
 # Pull shared instance + config after tool modules are loaded.
-from src.tools import mcp, MCP_HOST, MCP_PORT
+from src.tools import MCP_HOST, MCP_PORT, mcp  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Entry point
@@ -82,9 +82,9 @@ def run(host: str = MCP_HOST, port: int = MCP_PORT) -> None:
 
 
 if __name__ == "__main__":
-    import sys
-    import os
     import logging as _logging
+    import os
+    import sys
 
     _logging.basicConfig(
         level=logging.INFO,

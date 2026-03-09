@@ -8,15 +8,14 @@ Tables used
   SurrealDB-identifier-safe.
 """
 
-import json
 import logging
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Any
 
 import jsonpatch
 from surrealdb import AsyncSurreal, RecordID
 
-from src.config import SURREAL_URL, SURREAL_USER, SURREAL_PASS, SURREAL_NS, SURREAL_DB
+from src.config import SURREAL_DB, SURREAL_NS, SURREAL_PASS, SURREAL_URL, SURREAL_USER
 
 logger = logging.getLogger("agent.memory.store")
 

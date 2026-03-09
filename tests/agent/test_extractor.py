@@ -8,11 +8,11 @@ calls are made.  Each test calls `_extractor_node` directly on a
 """
 
 import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, call, patch
 
 from src.agent.core import AgentWithWorkflow
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

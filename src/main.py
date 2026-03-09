@@ -147,8 +147,8 @@ async def run_extensions(ext_names: list[str]) -> None:
 async def _init_db_schema() -> None:
     """Apply SurrealDB schema (idempotent — safe to run on every startup)."""
     try:
-        from src.agent.memory.store import MemoryStore
         from src.agent.memory.conversation_store import ConversationStore
+        from src.agent.memory.store import MemoryStore
 
         store = MemoryStore()
         await store.connect()

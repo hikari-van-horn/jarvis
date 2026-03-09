@@ -8,23 +8,21 @@ content on disk.
 
 import textwrap
 import tomllib
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open, patch
 
 import pytest
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 
-from src.agent import providers
 from src.agent.providers import (
-    _expand_env,
-    _build_provider,
-    _parse_provider_config,
-    load_providers,
-    get_provider,
-    RestProviderConfig,
     GoogleGenAIProviderConfig,
+    RestProviderConfig,
+    _build_provider,
+    _expand_env,
+    _parse_provider_config,
+    get_provider,
+    load_providers,
 )
-
 
 # ---------------------------------------------------------------------------
 # _expand_env

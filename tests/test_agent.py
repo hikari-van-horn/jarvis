@@ -1,5 +1,7 @@
 import pytest
+
 from src.agent.core import load_prompt
+
 
 def test_load_prompt():
     """Test that the load_prompt function resolves the markdown file and formats it properly."""

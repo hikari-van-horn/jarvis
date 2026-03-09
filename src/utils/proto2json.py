@@ -1,9 +1,9 @@
-from typing import Type, Any
-from google.protobuf.message import Message
-from google.protobuf import json_format
-from google.protobuf.descriptor import FieldDescriptor, Descriptor
 import logging
+from typing import Type
 
+from google.protobuf import json_format
+from google.protobuf.descriptor import Descriptor, FieldDescriptor
+from google.protobuf.message import Message
 
 # ---------------------------------------------------------------------------
 # Proto field type → JSON Schema type mapping

@@ -6,12 +6,12 @@ calls are made.  Each test calls `_gatekeeper_node` or `_route_after_gatekeeper`
 directly on a `AgentWIthWorkflow` instance.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from langchain_core.messages import HumanMessage, AIMessage
+
+import pytest
+from langchain_core.messages import AIMessage, HumanMessage
 
 from src.agent.core import AgentWithWorkflow
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

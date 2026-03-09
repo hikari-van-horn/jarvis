@@ -11,23 +11,24 @@ START
                                     └── END
 """
 
-import os
 import json
-import re
 import logging
+import os
+import re
 from enum import Enum
-from typing import TypedDict, Annotated, Literal
+from typing import Annotated, Literal, TypedDict
 
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage, BaseMessage
-from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.message import add_messages
+
+from src.agent.memory.conversation_store import ConversationStore
+from src.agent.memory.store import MemoryStore
+from src.config import OPENAI_API_KEY, OPENAI_BASE_URL
 
 from .mcp import MCPClientManager
-from src.config import OPENAI_API_KEY, OPENAI_BASE_URL
-from src.agent.memory.store import MemoryStore
-from src.agent.memory.conversation_store import ConversationStore
 
 logger = logging.getLogger("agent")
 
@@ -213,6 +214,7 @@ class AgentWithWorkflow:
             user_memory = await self.memory_store.get_user_memory(user_id)
             if user_memory is None:
                 import copy
+
                 from src.agent.memory.store import _PERSONA_SKELETON
                 seed = copy.deepcopy(_PERSONA_SKELETON)
                 seed["demographics"]["preferred_name"] = user_name
