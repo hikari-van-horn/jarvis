@@ -1,4 +1,7 @@
 __pycache__/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
 dist/
 data/
 build/
@@ -16,5 +19,4 @@ data/*
 .coverage
 .coverage.*
 coverage.xml
-htmlcov/
 

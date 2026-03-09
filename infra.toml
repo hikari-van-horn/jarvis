@@ -5,7 +5,9 @@ base_url = "${OPENAI_BASE_URL}"
 
 [providers.ollama]
 type = "rest"
-base_url = "http://localhost:11434"
+base_url = "http://localhost:11434/v1"
+api_key = "${OPENAI_API_KEY}"
+model = "gpt-oss"
 
 [providers.google]
 type = "google_genai"

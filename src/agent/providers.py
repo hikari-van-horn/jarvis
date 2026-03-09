@@ -75,42 +75,42 @@ def _parse_provider_config(raw: dict[str, Any]) -> RestProviderConfig | GoogleGe
 # ---------------------------------------------------------------------------
 
 
-def _build_provider(cfg: RestProviderConfig | GoogleGenAIProviderConfig) -> BaseChatModel:
+def _get_llm_client_from_cfg(cfg: RestProviderConfig | GoogleGenAIProviderConfig, **kwargs: Any) -> BaseChatModel:
     if isinstance(cfg, RestProviderConfig):
         api_key = _expand_env(cfg.api_key) or "dummy"
         base_url = _expand_env(cfg.base_url) or None
         return ChatOpenAI(
             api_key=api_key,
             base_url=base_url,
-            model=cfg.model,
-            temperature=cfg.temperature,
+            model=kwargs["model"] if "model" in kwargs else cfg.model,
+            temperature=kwargs["temperature"] if "temperature" in kwargs else cfg.temperature,
         )
 
     # GoogleGenAIProviderConfig
     api_key = _expand_env(cfg.api_key) or None
-    kwargs: dict[str, Any] = {
-        "model": cfg.model,
-        "temperature": cfg.temperature,
+    kwargs_model: dict[str, Any] = {
+        "model": kwargs["model"] if "model" in kwargs else cfg.model,
+        "temperature": kwargs["temperature"] if "temperature" in kwargs else cfg.temperature,
     }
     if api_key:
-        kwargs["google_api_key"] = api_key
-    return ChatGoogleGenerativeAI(**kwargs)
+        kwargs_model["google_api_key"] = api_key
+    return ChatGoogleGenerativeAI(**kwargs_model)
 
 
-def load_providers() -> dict[str, BaseChatModel]:
-    """Parse ``infra.toml`` and return a ``{name: chat_model}`` mapping."""
+def load_providers() -> dict[str, RestProviderConfig | GoogleGenAIProviderConfig]:
+    """Parse ``infra.toml`` and return a ``{name: provider_config}`` mapping."""
     with open(_INFRA_TOML, "rb") as f:
         config = tomllib.load(f)
 
-    return {name: _build_provider(_parse_provider_config(raw)) for name, raw in config.get("providers", {}).items()}
+    return {name: _parse_provider_config(raw) for name, raw in config.get("providers", {}).items()}
 
 
-def get_provider(name: str) -> BaseChatModel:
-    """Return the provider with the given name.
+def get_llm_client(name: str, **kwargs: Any) -> BaseChatModel:
+    """Return the chat model for the provider with the given name.
 
     Raises ``KeyError`` if no provider with that name exists in ``infra.toml``.
     """
     providers = load_providers()
     if name not in providers:
         raise KeyError(f"Provider '{name}' not found. Available: {sorted(providers)}")
-    return providers[name]
+    return _get_llm_client_from_cfg(providers[name], **kwargs)

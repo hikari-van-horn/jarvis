@@ -7,6 +7,7 @@
     type: llm_call
     llm_provider: ollama
     config:
+      system: jarvis/memory_gatekeeper.md
       model: gpt-oss
       temperature: 0.2
   
@@ -14,7 +15,7 @@
     type: llm_call
     llm_provider: ollama
     config:
-      system: jarvis/system_prompt.md
+      system: jarvis/memory_extractor.md
       model: gpt-oss
       temperature: 0.2
 
@@ -22,14 +23,15 @@
     type: llm_call
     llm_provider: deepseek
     config:
-      system: jarvis/system_prompt.md
+      system: jarvis/planner.md
       model: deepseek-reasoner
       temperature: 0.5
 
   - name: responser
     type: llm_call
-    llm_provider: ollama
+    llm_provider: deepseek
     config:
+      system: jarvis/system.md
       model: deepseek-chat
       temperature: 0.7
       

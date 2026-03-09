@@ -17,10 +17,10 @@ from langchain_openai import ChatOpenAI
 from src.agent.providers import (
     GoogleGenAIProviderConfig,
     RestProviderConfig,
-    _build_provider,
     _expand_env,
+    _get_llm_client_from_cfg,
     _parse_provider_config,
-    get_provider,
+    get_llm_client,
     load_providers,
 )
 
@@ -118,33 +118,33 @@ class TestBuildProvider:
     def test_rest_returns_chat_openai(self, monkeypatch):
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         cfg = RestProviderConfig(api_key="${OPENAI_API_KEY}", base_url="https://api.example.com/v1")
-        assert isinstance(_build_provider(cfg), ChatOpenAI)
+        assert isinstance(_get_llm_client_from_cfg(cfg), ChatOpenAI)
 
     def test_rest_expands_base_url(self, monkeypatch):
         monkeypatch.setenv("OPENAI_BASE_URL", "https://api.example.com/v1")
         cfg = RestProviderConfig(api_key="direct-key", base_url="${OPENAI_BASE_URL}")
-        model = _build_provider(cfg)
+        model = _get_llm_client_from_cfg(cfg)
         assert model.openai_api_base == "https://api.example.com/v1"
 
     def test_rest_without_api_key_uses_dummy(self):
         cfg = RestProviderConfig(base_url="http://localhost:11434")
-        assert isinstance(_build_provider(cfg), ChatOpenAI)
+        assert isinstance(_get_llm_client_from_cfg(cfg), ChatOpenAI)
 
     def test_google_genai_returns_google_model(self, monkeypatch):
         monkeypatch.setenv("GOOGLE_API_KEY", "gk-test")
         cfg = GoogleGenAIProviderConfig(type="google_genai", api_key="${GOOGLE_API_KEY}")
-        assert isinstance(_build_provider(cfg), ChatGoogleGenerativeAI)
+        assert isinstance(_get_llm_client_from_cfg(cfg), ChatGoogleGenerativeAI)
 
     def test_google_genai_expands_api_key(self, monkeypatch):
         monkeypatch.setenv("GOOGLE_API_KEY", "gk-test")
         cfg = GoogleGenAIProviderConfig(type="google_genai", api_key="${GOOGLE_API_KEY}")
-        model = _build_provider(cfg)
+        model = _get_llm_client_from_cfg(cfg)
         assert model.google_api_key.get_secret_value() == "gk-test"
 
     def test_google_genai_without_api_key_falls_back_to_env(self, monkeypatch):
         monkeypatch.setenv("GOOGLE_API_KEY", "gk-via-env")
         cfg = GoogleGenAIProviderConfig(type="google_genai")
-        assert isinstance(_build_provider(cfg), ChatGoogleGenerativeAI)
+        assert isinstance(_get_llm_client_from_cfg(cfg), ChatGoogleGenerativeAI)
 
 
 # ---------------------------------------------------------------------------
@@ -186,21 +186,52 @@ class TestLoadProviders:
         result = load_providers()
         assert set(result.keys()) == {"deepseek", "ollama", "google"}
 
-    def test_deepseek_is_chat_openai(self, fake_toml):
+    def test_deepseek_is_rest_config(self, fake_toml):
         result = load_providers()
-        assert isinstance(result["deepseek"], ChatOpenAI)
+        assert isinstance(result["deepseek"], RestProviderConfig)
 
-    def test_ollama_is_chat_openai(self, fake_toml):
+    def test_ollama_is_rest_config(self, fake_toml):
         result = load_providers()
-        assert isinstance(result["ollama"], ChatOpenAI)
+        assert isinstance(result["ollama"], RestProviderConfig)
 
-    def test_google_is_google_genai_model(self, fake_toml):
+    def test_google_is_google_genai_config(self, fake_toml):
         result = load_providers()
-        assert isinstance(result["google"], ChatGoogleGenerativeAI)
+        assert isinstance(result["google"], GoogleGenAIProviderConfig)
 
-    def test_google_constructed_with_api_key(self, fake_toml):
+
+# ---------------------------------------------------------------------------
+# get_llm_client
+# ---------------------------------------------------------------------------
+
+
+class TestGetLlmClient:
+    def test_returns_chat_openai_for_rest_provider(self, fake_toml):
+        model = get_llm_client("deepseek")
+        assert isinstance(model, ChatOpenAI)
+
+    def test_returns_google_model_for_google_provider(self, fake_toml):
+        model = get_llm_client("google")
+        assert isinstance(model, ChatGoogleGenerativeAI)
+
+    def test_raises_key_error_for_unknown_provider(self, fake_toml):
+        with pytest.raises(KeyError, match="unknown"):
+            get_llm_client("unknown")
+
+    def test_kwargs_override_temperature(self, fake_toml):
+        model = get_llm_client("deepseek", temperature=0.1)
+        assert model.temperature == 0.1
+
+    def test_kwargs_override_model(self, fake_toml):
+        model = get_llm_client("deepseek", model="deepseek-reasoner")
+        assert model.model_name == "deepseek-reasoner"
+
+    def test_error_message_lists_available_providers(self, fake_toml):
+        with pytest.raises(KeyError, match="deepseek"):
+            get_llm_client("nonexistent")
+
+    def test_google_config_preserves_raw_api_key(self, fake_toml):
         result = load_providers()
-        assert result["google"].google_api_key.get_secret_value() == "gk-fake"
+        assert result["google"].api_key == "${GOOGLE_API_KEY}"
 
     def test_tools_section_ignored(self, fake_toml):
         """The [tools.*] section must not appear in the providers mapping."""
@@ -212,26 +243,3 @@ class TestLoadProviders:
         with patch("builtins.open", mock_open(read_data=b"")), patch("tomllib.load", return_value={}):
             result = load_providers()
         assert result == {}
-
-
-# ---------------------------------------------------------------------------
-# get_provider
-# ---------------------------------------------------------------------------
-
-
-class TestGetProvider:
-    def test_returns_correct_provider(self, fake_toml):
-        model = get_provider("deepseek")
-        assert isinstance(model, ChatOpenAI)
-
-    def test_returns_google_provider(self, fake_toml):
-        model = get_provider("google")
-        assert isinstance(model, ChatGoogleGenerativeAI)
-
-    def test_raises_key_error_for_unknown_name(self, fake_toml):
-        with pytest.raises(KeyError, match="nonexistent"):
-            get_provider("nonexistent")
-
-    def test_key_error_lists_available_providers(self, fake_toml):
-        with pytest.raises(KeyError, match="deepseek"):
-            get_provider("nonexistent")

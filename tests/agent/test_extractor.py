@@ -22,7 +22,7 @@ from src.agent.core import AgentWithWorkflow
 @pytest.fixture
 def agent():
     """Return a AgentWIthWorkflow with LLMs and MemoryStore fully mocked out."""
-    with patch("src.agent.core.ChatOpenAI"), patch("src.agent.core.MemoryStore"):
+    with patch("src.agent.core.get_llm_client"), patch("src.agent.core.MemoryStore"):
         inst = AgentWithWorkflow()
     inst.llm_precise = MagicMock()
     inst.memory_store = MagicMock()

@@ -19,16 +19,16 @@ from enum import Enum
 from typing import Annotated, Literal, TypedDict
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 
 from src.agent.memory.conversation_store import ConversationStore
 from src.agent.memory.store import MemoryStore
-from src.config import OPENAI_API_KEY, OPENAI_BASE_URL
+from src.config import OPENAI_API_KEY
 
 from .mcp import MCPClientManager
+from .providers import get_llm_client
 
 logger = logging.getLogger("agent")
 
@@ -40,14 +40,14 @@ LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
 # ---------------------------------------------------------------------------
 
 
-def load_prompt(agent_name: str, template_name: str, **kwargs) -> str:
+def load_prompt(path: str, **kwargs) -> str:
     """Load a prompt template and substitute {{variable}} placeholders.
 
     Uses ``{{variable}}`` (double-brace) syntax so that literal JSON braces
     inside the templates are never accidentally consumed by Python's
     ``str.format()``.
     """
-    prompt_path = os.path.join(os.path.dirname(__file__), agent_name, template_name)
+    prompt_path = os.path.join(os.path.dirname(__file__), path)
     try:
         with open(prompt_path, "r", encoding="utf-8") as f:
             template = f.read()
@@ -55,7 +55,7 @@ def load_prompt(agent_name: str, template_name: str, **kwargs) -> str:
             template = template.replace("{{" + key + "}}", str(value))
         return template
     except Exception as exc:
-        logger.error("Error loading prompt %s: %s", template_name, exc)
+        logger.error("Error loading prompt %s: %s", path, exc)
         return "You are a helpful AI assistant."
 
 
@@ -147,19 +147,15 @@ class AgentWithWorkflow:
         self.mcp_client = MCPClientManager()
 
         # Conversational LLM (slightly creative)
-        self.llm = ChatOpenAI(
-            api_key=OPENAI_API_KEY or "dummy_key_if_not_set",
-            base_url=OPENAI_BASE_URL if OPENAI_BASE_URL else None,
-            model=LLM_MODEL,
-            temperature=0.7,
-        )
+        self.llm = get_llm_client("deepseek", model=LLM_MODEL, temperature=0.7)
+        # self.llm = ChatOpenAI(
+        #     api_key=OPENAI_API_KEY or "dummy_key_if_not_set",
+        #     base_url=OPENAI_BASE_URL if OPENAI_BASE_URL else None,
+        #     model=LLM_MODEL,
+        #     temperature=0.7,
+        # )
         # Structured extraction / classification (deterministic)
-        self.llm_precise = ChatOpenAI(
-            api_key=OPENAI_API_KEY or "dummy_key_if_not_set",
-            base_url=OPENAI_BASE_URL if OPENAI_BASE_URL else None,
-            model=LLM_MODEL,
-            temperature=0.0,
-        )
+        self.llm_precise = get_llm_client("ollama", temperature=0.0)
 
         # ------------------------------------------------------------------
         # Build the state graph
@@ -257,7 +253,7 @@ class AgentWithWorkflow:
         lines.append(f"User: {user_input}")
         gatekeeper_input = "\n".join(lines)
 
-        prompt = load_prompt("memory", "prompts/gatekeeper.md", input=gatekeeper_input)
+        prompt = load_prompt("prompts/memory_gatekeeper.md", input=gatekeeper_input)
 
         # 3. Call the gatekeeper LLM
         try:
@@ -296,8 +292,7 @@ class AgentWithWorkflow:
         current_memory = state.get("user_memory") or {}
 
         prompt = load_prompt(
-            "memory",
-            "prompts/extractor.md",
+            "prompts/memory_extractor.md",
             PROTO_SCHEMA_DOC=self._PROTO_SCHEMA,
             CURRENT_USER_JSON=json.dumps(current_memory, ensure_ascii=False, indent=2),
             new_input=user_input,
@@ -347,13 +342,12 @@ class AgentWithWorkflow:
         user_memory = state.get("user_memory") or {}
 
         # Build a fresh system prompt every turn with the latest memory snapshot.
-        soul_prompt = load_prompt("jarvis", "soul.md")
+        soul_prompt = load_prompt("prompts/jarvis/soul.md")
         memory_json = (
             json.dumps(user_memory, ensure_ascii=False, indent=2) if user_memory else "No memory recorded yet."
         )
         sys_content = load_prompt(
-            "jarvis",
-            "system_prompt.md",
+            "prompts/jarvis/system.md",
             user_name=user_name,
             agent_soul=soul_prompt,
             user_memory=memory_json,
