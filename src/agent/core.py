@@ -15,7 +15,7 @@ import os
 import json
 import re
 import logging
-from contextlib import AsyncExitStack
+from enum import Enum
 from typing import TypedDict, Annotated, Literal
 
 from langchain_openai import ChatOpenAI
@@ -24,6 +24,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 
+from .mcp import MCPClientManager
 from src.config import OPENAI_API_KEY, OPENAI_BASE_URL
 from src.agent.memory.store import MemoryStore
 from src.agent.memory.conversation_store import ConversationStore
@@ -90,62 +91,19 @@ def _parse_json_from_llm(text: str) -> dict | list | None:
 # MCP client manager
 # ---------------------------------------------------------------------------
 
-MCP_SSE_URL = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:8001/sse")
-
-
-class MCPClientManager:
-    """Maintains a persistent SSE connection to the local MCP server.
-
-    Tools are loaded once and reused for the lifetime of the agent.
-    Call ``get_tools()`` to lazily connect and retrieve the tool list.
-    Call ``close()`` to cleanly shut down the connection.
-    """
-
-    def __init__(self, url: str = MCP_SSE_URL) -> None:
-        self._url = url
-        self._tools: list | None = None
-        self._exit_stack: AsyncExitStack | None = None
-
-    async def get_tools(self) -> list:
-        """Return cached tools, connecting to the MCP server on first call."""
-        if self._tools is not None:
-            return self._tools
-        try:
-            from mcp.client.sse import sse_client
-            from mcp import ClientSession
-            from langchain_mcp_adapters.tools import load_mcp_tools
-
-            stack = AsyncExitStack()
-            read, write = await stack.enter_async_context(sse_client(self._url))
-            session = await stack.enter_async_context(ClientSession(read, write))
-            await session.initialize()
-            self._tools = await load_mcp_tools(session)
-            self._exit_stack = stack
-            logger.info(
-                "MCPClientManager: loaded %d tools from %s",
-                len(self._tools),
-                self._url,
-            )
-        except Exception as exc:
-            logger.warning(
-                "MCPClientManager: could not connect to MCP server (%s) — "
-                "tool-calling will be disabled for this session.",
-                exc,
-            )
-            self._tools = []
-        return self._tools
-
-    async def close(self) -> None:
-        """Close the MCP SSE connection."""
-        if self._exit_stack:
-            await self._exit_stack.aclose()
-            self._exit_stack = None
-            self._tools = None
-
-
 # ---------------------------------------------------------------------------
 # LangGraph state
 # ---------------------------------------------------------------------------
+
+class AgentStatus(AttributeError, Enum):
+    """Indicates the current status of the agent's processing pipeline."""
+    IDLE = "idle"
+    PLANNING = "planning"
+    EXECUTING = "executing"
+    VERIFYING = "verifying"
+    RESPONDING = "responding"
+    COMPLETE = "complete"
+    ERROR = "error"
 
 class AgentState(TypedDict):
     # Persistent conversation history — add_messages APPENDS each update
@@ -169,7 +127,7 @@ class AgentState(TypedDict):
 # Agent
 # ---------------------------------------------------------------------------
 
-class AgentWIthWorkflow:
+class AgentWithWorkflow:
     """LangGraph-based multi-agent pipeline with SurrealDB-backed long-term memory."""
 
     # Proto schema text — loaded once at class level for the extractor prompt

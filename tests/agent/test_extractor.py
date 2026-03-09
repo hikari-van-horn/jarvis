@@ -11,7 +11,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
-from src.agent.core import AgentWIthWorkflow
+from src.agent.core import AgentWithWorkflow
 
 
 # ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ from src.agent.core import AgentWIthWorkflow
 def agent():
     """Return a AgentWIthWorkflow with LLMs and MemoryStore fully mocked out."""
     with patch("src.agent.core.ChatOpenAI"), patch("src.agent.core.MemoryStore"):
-        inst = AgentWIthWorkflow()
+        inst = AgentWithWorkflow()
     inst.llm_precise = MagicMock()
     inst.memory_store = MagicMock()
     inst.memory_store.connect = AsyncMock()

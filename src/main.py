@@ -108,7 +108,7 @@ async def run_extensions(ext_names: list[str]) -> None:
     tasks: list[asyncio.Task] = []
 
     for ext_name in ext_names:
-        module_name = f"src.exts.{ext_name}_ext"
+        module_name = f"src.channels.{ext_name}"
         try:
             ext_module = importlib.import_module(module_name)
             if hasattr(ext_module, "start") and asyncio.iscoroutinefunction(

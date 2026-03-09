@@ -3,9 +3,9 @@ from discord.ext import commands
 import logging
 
 from src.config import DISCORD_TOKEN
-from src.agent.core import AgentWIthWorkflow
+from src.agent.core import AgentWithWorkflow
 
-logger = logging.getLogger("discord_ext")
+logger = logging.getLogger("channels.discord")
 
 async def start():
     if not DISCORD_TOKEN:
@@ -17,7 +17,7 @@ async def start():
     intents.members = True          # 开启成员相关权限
 
     bot = commands.Bot(command_prefix="!", intents=intents)
-    agent_graph = AgentWIthWorkflow()
+    agent_graph = AgentWithWorkflow()
     
     @bot.event
     async def on_ready():
