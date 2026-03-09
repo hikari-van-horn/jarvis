@@ -1,0 +1,35 @@
+
+- mcp:
+  server_url: ${MCP_SERVER_URL}
+
+- nodes:
+  - name: memory_gatekeeper
+    type: llm_call
+    llm_provider: ollama
+    config:
+      model: gpt-oss
+      temperature: 0.2
+  
+  - name: memory_extractor
+    type: llm_call
+    llm_provider: ollama
+    config:
+      system: jarvis/system_prompt.md
+      model: gpt-oss
+      temperature: 0.2
+
+  - name: planner_node
+    type: llm_call
+    llm_provider: deepseek
+    config:
+      system: jarvis/system_prompt.md
+      model: deepseek-reasoner
+      temperature: 0.5
+
+  - name: responser
+    type: llm_call
+    llm_provider: ollama
+    config:
+      model: deepseek-chat
+      temperature: 0.7
+      
