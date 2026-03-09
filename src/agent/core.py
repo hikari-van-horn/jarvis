@@ -314,9 +314,7 @@ class AgentWithWorkflow:
                 [HumanMessage(content=prompt)]
             )
             patches = _parse_json_from_llm(response.content)
-            # Normalise: LLM sometimes returns a single object instead of an array.
-            if isinstance(patches, dict):
-                patches = [patches]
+            # Only accept a list of patch operations; a bare object is invalid.
             if not isinstance(patches, list):
                 logger.warning(
                     "extractor: unexpected patch format: %s", response.content[:300]
