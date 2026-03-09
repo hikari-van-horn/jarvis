@@ -1,4 +1,3 @@
-
 import logging
 import os
 from contextlib import AsyncExitStack
@@ -56,4 +55,3 @@ class MCPClientManager:
             await self._exit_stack.aclose()
             self._exit_stack = None
             self._tools = None
-

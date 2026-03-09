@@ -66,9 +66,7 @@ async def update_user_memory(user_id: str, patches: str) -> str:
             return "Error: patches must be a JSON array of RFC 6902 operations."
         await store.connect()
         updated = await store.apply_patches(user_id, patch_list)
-        logger.info(
-            "update_user_memory: applied %d patches for user_id=%s", len(patch_list), user_id
-        )
+        logger.info("update_user_memory: applied %d patches for user_id=%s", len(patch_list), user_id)
         return json.dumps(updated, ensure_ascii=False, indent=2)
     except json.JSONDecodeError as exc:
         return f"Error: invalid JSON in patches — {exc}"

@@ -43,6 +43,7 @@ _SKILL_FILENAME = "SKILL.md"
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_frontmatter(text: str) -> dict[str, str]:
     """Extract YAML-style front-matter (``--- … ---``) as a plain dict.
 
@@ -129,10 +130,7 @@ def find_skills(query: Optional[str] = None) -> str:
 
     if query and query.strip():
         q = query.strip().lower()
-        all_skills = [
-            s for s in all_skills
-            if q in s["name"].lower() or q in s["description"].lower()
-        ]
+        all_skills = [s for s in all_skills if q in s["name"].lower() or q in s["description"].lower()]
 
     if not all_skills:
         if query:
@@ -195,7 +193,4 @@ def load_skill(skill_name: str) -> str:
             except Exception as exc:
                 logger.warning("Could not read skill %s: %s", skill_file, exc)
 
-    return (
-        f"Skill '{skill_name}' not found.  "
-        f"Use find_skills() to list all available skills."
-    )
+    return f"Skill '{skill_name}' not found.  Use find_skills() to list all available skills."

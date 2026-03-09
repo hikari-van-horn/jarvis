@@ -9,32 +9,32 @@ from google.protobuf.message import Message
 # Proto field type → JSON Schema type mapping
 # ---------------------------------------------------------------------------
 _SCALAR_TYPE_MAP: dict[int, dict] = {
-    FieldDescriptor.TYPE_STRING:   {"type": "string"},
-    FieldDescriptor.TYPE_BYTES:    {"type": "string", "contentEncoding": "base64"},
-    FieldDescriptor.TYPE_BOOL:     {"type": "boolean"},
-    FieldDescriptor.TYPE_FLOAT:    {"type": "number"},
-    FieldDescriptor.TYPE_DOUBLE:   {"type": "number"},
-    FieldDescriptor.TYPE_INT32:    {"type": "integer"},
-    FieldDescriptor.TYPE_INT64:    {"type": "integer"},
-    FieldDescriptor.TYPE_UINT32:   {"type": "integer", "minimum": 0},
-    FieldDescriptor.TYPE_UINT64:   {"type": "integer", "minimum": 0},
-    FieldDescriptor.TYPE_SINT32:   {"type": "integer"},
-    FieldDescriptor.TYPE_SINT64:   {"type": "integer"},
-    FieldDescriptor.TYPE_FIXED32:  {"type": "integer", "minimum": 0},
-    FieldDescriptor.TYPE_FIXED64:  {"type": "integer", "minimum": 0},
+    FieldDescriptor.TYPE_STRING: {"type": "string"},
+    FieldDescriptor.TYPE_BYTES: {"type": "string", "contentEncoding": "base64"},
+    FieldDescriptor.TYPE_BOOL: {"type": "boolean"},
+    FieldDescriptor.TYPE_FLOAT: {"type": "number"},
+    FieldDescriptor.TYPE_DOUBLE: {"type": "number"},
+    FieldDescriptor.TYPE_INT32: {"type": "integer"},
+    FieldDescriptor.TYPE_INT64: {"type": "integer"},
+    FieldDescriptor.TYPE_UINT32: {"type": "integer", "minimum": 0},
+    FieldDescriptor.TYPE_UINT64: {"type": "integer", "minimum": 0},
+    FieldDescriptor.TYPE_SINT32: {"type": "integer"},
+    FieldDescriptor.TYPE_SINT64: {"type": "integer"},
+    FieldDescriptor.TYPE_FIXED32: {"type": "integer", "minimum": 0},
+    FieldDescriptor.TYPE_FIXED64: {"type": "integer", "minimum": 0},
     FieldDescriptor.TYPE_SFIXED32: {"type": "integer"},
     FieldDescriptor.TYPE_SFIXED64: {"type": "integer"},
 }
 
 # Well-known proto types that map directly to JSON Schema primitives
 _WELL_KNOWN_TYPES: dict[str, dict] = {
-    "google.protobuf.Timestamp":  {"type": "string", "format": "date-time"},
-    "google.protobuf.Duration":   {"type": "string", "format": "duration"},
-    "google.protobuf.StringValue":{"type": "string"},
-    "google.protobuf.BoolValue":  {"type": "boolean"},
-    "google.protobuf.Int32Value":  {"type": "integer"},
-    "google.protobuf.Int64Value":  {"type": "integer"},
-    "google.protobuf.FloatValue":  {"type": "number"},
+    "google.protobuf.Timestamp": {"type": "string", "format": "date-time"},
+    "google.protobuf.Duration": {"type": "string", "format": "duration"},
+    "google.protobuf.StringValue": {"type": "string"},
+    "google.protobuf.BoolValue": {"type": "boolean"},
+    "google.protobuf.Int32Value": {"type": "integer"},
+    "google.protobuf.Int64Value": {"type": "integer"},
+    "google.protobuf.FloatValue": {"type": "number"},
     "google.protobuf.DoubleValue": {"type": "number"},
 }
 
@@ -73,8 +73,7 @@ def _field_to_schema(field: FieldDescriptor, visited: set[str]) -> dict:
 
     # ------------------------------------------------------------------ map<k,v>
     # Map fields appear as repeated message with map_entry option set.
-    if (field.message_type is not None
-            and field.message_type.GetOptions().map_entry):
+    if field.message_type is not None and field.message_type.GetOptions().map_entry:
         value_field = field.message_type.fields_by_name["value"]
         value_schema = _field_to_schema(value_field, visited)
         return {
@@ -113,14 +112,11 @@ class ProtobufJsonConverter:
         proto_msg: Message,
         indent: int = 2,
         preserving_proto_field_name: bool = True,
-        including_default_value_fields: bool = False
+        including_default_value_fields: bool = False,
     ) -> str:
         """将Protobuf消息转换为JSON字符串"""
         try:
-            kwargs = {
-                'indent': indent,
-                'preserving_proto_field_name': preserving_proto_field_name
-            }
+            kwargs = {"indent": indent, "preserving_proto_field_name": preserving_proto_field_name}
             return json_format.MessageToJson(proto_msg, **kwargs)
         except json_format.Error as e:
             logging.error(f"Protobuf to JSON conversion failed: {e}")
@@ -130,19 +126,11 @@ class ProtobufJsonConverter:
             raise
 
     @staticmethod
-    def json_to_proto(
-        json_str: str,
-        proto_class: Type[Message],
-        ignore_unknown_fields: bool = False
-    ) -> Message:
+    def json_to_proto(json_str: str, proto_class: Type[Message], ignore_unknown_fields: bool = False) -> Message:
         """将JSON字符串转换为Protobuf消息"""
         try:
             proto_msg = proto_class()
-            json_format.Parse(
-                json_str,
-                proto_msg,
-                ignore_unknown_fields=ignore_unknown_fields
-            )
+            json_format.Parse(json_str, proto_msg, ignore_unknown_fields=ignore_unknown_fields)
             return proto_msg
         except json_format.ParseError as e:
             logging.error(f"JSON to Protobuf parsing failed: {e}")

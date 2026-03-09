@@ -8,6 +8,7 @@ from src.config import DISCORD_TOKEN
 
 logger = logging.getLogger("channels.discord")
 
+
 async def start():
     if not DISCORD_TOKEN:
         logger.error("DISCORD_TOKEN is not configured.")
@@ -15,14 +16,14 @@ async def start():
 
     intents = discord.Intents.default()
     intents.message_content = True  # 开启读取消息内容权限
-    intents.members = True          # 开启成员相关权限
+    intents.members = True  # 开启成员相关权限
 
     bot = commands.Bot(command_prefix="!", intents=intents)
     agent_graph = AgentWithWorkflow()
 
     @bot.event
     async def on_ready():
-        logger.info(f'Logged in as {bot.user} (ID: {bot.user.id})')
+        logger.info(f"Logged in as {bot.user} (ID: {bot.user.id})")
 
     @bot.event
     async def on_message(message):
@@ -45,7 +46,7 @@ async def start():
                 # Discord requests must be under 2000 chars, so chunk if necessary
                 if len(response) > 2000:
                     for i in range(0, len(response), 2000):
-                        await message.channel.send(response[i:i+2000])
+                        await message.channel.send(response[i : i + 2000])
                 else:
                     await message.channel.send(response)
             return
@@ -56,7 +57,7 @@ async def start():
             thread_name = f"对话 - {message.author.display_name}"
             thread = await message.create_thread(
                 name=thread_name,
-                auto_archive_duration=60 # 1小时后自动归档
+                auto_archive_duration=60,  # 1小时后自动归档
             )
 
             # 2. 在 Thread 中 @ 对话发起者并回复

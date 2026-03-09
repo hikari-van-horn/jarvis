@@ -30,9 +30,7 @@ async def get_recent_conversation(
     store = ConversationStore()
     try:
         await store.connect()
-        conversation_id = await store.get_or_create_conversation(
-            user_id, platform, agent_id="jarvis"
-        )
+        conversation_id = await store.get_or_create_conversation(user_id, platform, agent_id="jarvis")
         messages = await store.load_as_langchain_messages(conversation_id, limit=limit)
         history = [
             {
@@ -43,9 +41,7 @@ async def get_recent_conversation(
         ]
         return json.dumps(history, ensure_ascii=False, indent=2)
     except Exception as exc:
-        logger.error(
-            "get_recent_conversation error for user_id=%s: %s", user_id, exc
-        )
+        logger.error("get_recent_conversation error for user_id=%s: %s", user_id, exc)
         return f"Error retrieving conversation: {exc}"
     finally:
         await store.close()

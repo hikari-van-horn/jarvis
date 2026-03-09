@@ -33,11 +33,12 @@ from .mcp import MCPClientManager
 logger = logging.getLogger("agent")
 
 
-LLM_MODEL=os.getenv("LLM_MODEL", "deepseek-chat")
+LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def load_prompt(agent_name: str, template_name: str, **kwargs) -> str:
     """Load a prompt template and substitute {{variable}} placeholders.
@@ -70,7 +71,7 @@ def _load_file(path: str) -> str:
 def _parse_json_from_llm(text: str) -> dict | list | None:
     """Strip markdown code fences and parse the first JSON object or array."""
     text = re.sub(r"```(?:json)?\s*", "", text).strip("`").strip()
-    for opener, closer in [('[', ']'), ('{', '}')]:
+    for opener, closer in [("[", "]"), ("{", "}")]:
         start = text.find(opener)
         if start == -1:
             continue
@@ -96,8 +97,10 @@ def _parse_json_from_llm(text: str) -> dict | list | None:
 # LangGraph state
 # ---------------------------------------------------------------------------
 
+
 class AgentStatus(AttributeError, Enum):
     """Indicates the current status of the agent's processing pipeline."""
+
     IDLE = "idle"
     PLANNING = "planning"
     EXECUTING = "executing"
@@ -105,6 +108,7 @@ class AgentStatus(AttributeError, Enum):
     RESPONDING = "responding"
     COMPLETE = "complete"
     ERROR = "error"
+
 
 class AgentState(TypedDict):
     # Persistent conversation history — add_messages APPENDS each update
@@ -120,23 +124,22 @@ class AgentState(TypedDict):
     # (SurrealDB is the source of truth for long-term memory)
     user_memory: dict | None
     # Short-term memory: SurrealDB conversation session
-    conversation_id: str | None        # str form of RecordID
-    persisted_history: list | None     # recent BaseMessage objects loaded from SurrealDB
+    conversation_id: str | None  # str form of RecordID
+    persisted_history: list | None  # recent BaseMessage objects loaded from SurrealDB
 
 
 # ---------------------------------------------------------------------------
 # Agent
 # ---------------------------------------------------------------------------
 
+
 class AgentWithWorkflow:
     """LangGraph-based multi-agent pipeline with SurrealDB-backed long-term memory."""
 
     # Proto schema text — loaded once at class level for the extractor prompt
-    _PROTO_SCHEMA: str = _load_file(
-        os.path.join(os.path.dirname(__file__), "memory", "persona.proto")
-    )
+    _PROTO_SCHEMA: str = _load_file(os.path.join(os.path.dirname(__file__), "memory", "persona.proto"))
 
-    def __init__(self, agent_id: str = 'jarvis') -> None:
+    def __init__(self, agent_id: str = "jarvis") -> None:
         self.agent_id = agent_id
         self.memory_saver = MemorySaver()
         self.memory_store = MemoryStore()
@@ -181,9 +184,7 @@ class AgentWithWorkflow:
     # Routing
     # ------------------------------------------------------------------
 
-    def _route_after_gatekeeper(
-        self, state: AgentState
-    ) -> Literal["extract", "respond"]:
+    def _route_after_gatekeeper(self, state: AgentState) -> Literal["extract", "respond"]:
         result = state.get("gatekeeper_result") or {}
         if result.get("trigger") is True:
             logger.info(
@@ -216,12 +217,14 @@ class AgentWithWorkflow:
                 import copy
 
                 from src.agent.memory.store import _PERSONA_SKELETON
+
                 seed = copy.deepcopy(_PERSONA_SKELETON)
                 seed["demographics"]["preferred_name"] = user_name
                 user_memory = await self.memory_store.upsert_user_memory(user_id, seed)
                 logger.info(
                     "gatekeeper: bootstrapped new memory record for user_id=%s name=%r",
-                    user_id, user_name,
+                    user_id,
+                    user_name,
                 )
         except Exception as exc:
             logger.error("gatekeeper: memory fetch failed: %s", exc)
@@ -235,9 +238,7 @@ class AgentWithWorkflow:
             conversation_id = await self.conversation_store.get_or_create_conversation(
                 user_id, platform, agent_id="jarvis"
             )
-            persisted_history = await self.conversation_store.load_as_langchain_messages(
-                conversation_id, limit=50
-            )
+            persisted_history = await self.conversation_store.load_as_langchain_messages(conversation_id, limit=50)
             logger.debug(
                 "gatekeeper: loaded %d messages from conversation %s",
                 len(persisted_history),
@@ -256,20 +257,14 @@ class AgentWithWorkflow:
         lines.append(f"User: {user_input}")
         gatekeeper_input = "\n".join(lines)
 
-        prompt = load_prompt(
-            "memory", "prompts/gatekeeper.md", input=gatekeeper_input
-        )
+        prompt = load_prompt("memory", "prompts/gatekeeper.md", input=gatekeeper_input)
 
         # 3. Call the gatekeeper LLM
         try:
-            response = await self.llm_precise.ainvoke(
-                [HumanMessage(content=prompt)]
-            )
+            response = await self.llm_precise.ainvoke([HumanMessage(content=prompt)])
             gatekeeper_result = _parse_json_from_llm(response.content)
             if not isinstance(gatekeeper_result, dict):
-                logger.warning(
-                    "gatekeeper: unparseable response: %s", response.content[:300]
-                )
+                logger.warning("gatekeeper: unparseable response: %s", response.content[:300])
                 gatekeeper_result = {
                     "trigger": False,
                     "category": None,
@@ -310,15 +305,11 @@ class AgentWithWorkflow:
 
         # 1. Call the extractor LLM
         try:
-            response = await self.llm_precise.ainvoke(
-                [HumanMessage(content=prompt)]
-            )
+            response = await self.llm_precise.ainvoke([HumanMessage(content=prompt)])
             patches = _parse_json_from_llm(response.content)
             # Only accept a list of patch operations; a bare object is invalid.
             if not isinstance(patches, list):
-                logger.warning(
-                    "extractor: unexpected patch format: %s", response.content[:300]
-                )
+                logger.warning("extractor: unexpected patch format: %s", response.content[:300])
                 patches = []
         except Exception as exc:
             logger.error("extractor LLM call failed: %s", exc)
@@ -327,18 +318,14 @@ class AgentWithWorkflow:
         # 2. Apply JSON patches to SurrealDB
         if patches:
             try:
-                updated_memory = await self.memory_store.apply_patches(
-                    user_id, patches
-                )
+                updated_memory = await self.memory_store.apply_patches(user_id, patches)
                 logger.info(
                     "extractor: applied %d patches for user_id=%s",
                     len(patches),
                     user_id,
                 )
             except Exception as exc:
-                logger.error(
-                    "extractor: patch apply failed for user_id=%s: %s", user_id, exc
-                )
+                logger.error("extractor: patch apply failed for user_id=%s: %s", user_id, exc)
                 updated_memory = current_memory
         else:
             logger.info("extractor: no patches to apply for user_id=%s", user_id)
@@ -362,9 +349,7 @@ class AgentWithWorkflow:
         # Build a fresh system prompt every turn with the latest memory snapshot.
         soul_prompt = load_prompt("jarvis", "soul.md")
         memory_json = (
-            json.dumps(user_memory, ensure_ascii=False, indent=2)
-            if user_memory
-            else "No memory recorded yet."
+            json.dumps(user_memory, ensure_ascii=False, indent=2) if user_memory else "No memory recorded yet."
         )
         sys_content = load_prompt(
             "jarvis",
@@ -395,9 +380,7 @@ class AgentWithWorkflow:
 
         logger.info("core_agent: history=%d messages for user_input=%r", len(history), user_input[:60])
         messages_for_llm: list[BaseMessage] = (
-            [SystemMessage(content=sys_content)]
-            + history
-            + [HumanMessage(content=user_input)]
+            [SystemMessage(content=sys_content)] + history + [HumanMessage(content=user_input)]
         )
 
         # Load MCP tools and bind them to the LLM (cached after first call).
@@ -426,17 +409,11 @@ class AgentWithWorkflow:
                 else:
                     try:
                         tool_result = await tool.ainvoke(tc["args"])
-                        logger.debug(
-                            "core_agent: tool '%s' returned: %s", tc["name"], str(tool_result)[:200]
-                        )
+                        logger.debug("core_agent: tool '%s' returned: %s", tc["name"], str(tool_result)[:200])
                     except Exception as exc:
                         tool_result = f"Tool error: {exc}"
-                        logger.error(
-                            "core_agent: tool '%s' raised: %s", tc["name"], exc
-                        )
-                messages_for_llm.append(
-                    ToolMessage(content=str(tool_result), tool_call_id=tc["id"])
-                )
+                        logger.error("core_agent: tool '%s' raised: %s", tc["name"], exc)
+                messages_for_llm.append(ToolMessage(content=str(tool_result), tool_call_id=tc["id"]))
         else:
             # Loop exhausted without a clean break — force a plain text reply.
             logger.warning("core_agent: tool loop exhausted (10 iterations); forcing final text response")
@@ -453,19 +430,16 @@ class AgentWithWorkflow:
         if conversation_id_str:
             try:
                 from surrealdb import RecordID as _RID
+
                 # RecordID can be reconstructed from its string representation.
-                conv_id = _RID(*conversation_id_str.split(":", 1)) if ":" in conversation_id_str else conversation_id_str
+                conv_id = (
+                    _RID(*conversation_id_str.split(":", 1)) if ":" in conversation_id_str else conversation_id_str
+                )
                 await self.conversation_store.append_message(conv_id, "user", user_input)
-                await self.conversation_store.append_message(
-                    conv_id, "assistant", response.content
-                )
-                logger.debug(
-                    "core_agent: persisted turn to conversation %s", conv_id
-                )
+                await self.conversation_store.append_message(conv_id, "assistant", response.content)
+                logger.debug("core_agent: persisted turn to conversation %s", conv_id)
             except Exception as exc:
-                logger.warning(
-                    "core_agent: failed to persist conversation turn: %s", exc
-                )
+                logger.warning("core_agent: failed to persist conversation turn: %s", exc)
 
         return {"messages": [response]}
 

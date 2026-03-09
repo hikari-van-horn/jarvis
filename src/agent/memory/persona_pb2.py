@@ -4,6 +4,7 @@
 # source: src/agent/memory/persona.proto
 # Protobuf Python Version: 6.31.1
 """Generated protocol buffer code."""
+
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pool as _descriptor_pool
 from google.protobuf import runtime_version as _runtime_version
@@ -12,51 +13,46 @@ from google.protobuf import timestamp_pb2 as _timestamp_pb2  # noqa: F401 – mu
 from google.protobuf.internal import builder as _builder
 
 _runtime_version.ValidateProtobufRuntimeVersion(
-    _runtime_version.Domain.PUBLIC,
-    6,
-    31,
-    1,
-    '',
-    'src/agent/memory/persona.proto'
+    _runtime_version.Domain.PUBLIC, 6, 31, 1, "", "src/agent/memory/persona.proto"
 )
 # @@protoc_insertion_point(imports)
 
 _sym_db = _symbol_database.Default()
 
 
-
-
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1esrc/agent/memory/persona.proto\x12\nsrc.memory\x1a\x1fgoogle/protobuf/timestamp.proto\"\xea\x01\n\tEducation\x12,\n\x06\x64\x65gree\x18\x01 \x01(\x0e\x32\x1c.src.memory.Education.Degree\x12\r\n\x05major\x18\x02 \x01(\t\x12\x13\n\x0binstitution\x18\x03 \x01(\t\x12\x12\n\nstart_year\x18\x04 \x01(\x05\x12\x10\n\x08\x65nd_year\x18\x05 \x01(\x05\x12\x13\n\x0bmentor_name\x18\x06 \x01(\t\"P\n\x06\x44\x65gree\x12\x16\n\x12\x44\x45GREE_UNSPECIFIED\x10\x00\x12\x0c\n\x08\x42\x41\x43HELOR\x10\x01\x12\n\n\x06MASTER\x10\x02\x12\x07\n\x03PHD\x10\x03\x12\x0b\n\x07POSTDOC\x10\x04\"@\n\x08Location\x12\x0c\n\x04\x63ity\x18\x01 \x01(\t\x12\x14\n\x0c\x63ountry_code\x18\x02 \x01(\t\x12\x10\n\x08timezone\x18\x03 \x01(\t\"\xd4\x02\n\x0c\x46\x61\x63tMetadata\x12\x33\n\x06source\x18\x01 \x01(\x0e\x32#.src.memory.FactMetadata.SourceType\x12.\n\ncreated_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x34\n\x10last_verified_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x18\n\x10\x63onfidence_score\x18\x04 \x01(\x02\x12\x18\n\x10original_chat_id\x18\x05 \x01(\t\"u\n\nSourceType\x12\x16\n\x12SOURCE_UNSPECIFIED\x10\x00\x12\x1b\n\x17\x45XPLICIT_USER_STATEMENT\x10\x01\x12\x16\n\x12IMPLICIT_INFERENCE\x10\x02\x12\x1a\n\x16THIRD_PARTY_EXTENSIONS\x10\x03\"\x9f\x08\n\x0bUserPersona\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12:\n\x0c\x64\x65mographics\x18\x02 \x01(\x0b\x32$.src.memory.UserPersona.Demographics\x12\x38\n\x0bpreferences\x18\x03 \x01(\x0b\x32#.src.memory.UserPersona.Preferences\x12\x39\n\x0cwork_context\x18\x04 \x01(\x0b\x32#.src.memory.UserPersona.WorkContext\x12\x43\n\x11\x66inancial_profile\x18\x05 \x01(\x0b\x32(.src.memory.UserPersona.FinancialProfile\x1a\xad\x01\n\x0c\x44\x65mographics\x12\x16\n\x0epreferred_name\x18\x01 \x01(\t\x12+\n\rhome_location\x18\x02 \x01(\x0b\x32\x14.src.memory.Location\x12\x30\n\x11\x65\x64ucation_history\x18\x03 \x03(\x0b\x32\x15.src.memory.Education\x12&\n\x04meta\x18\x04 \x01(\x0b\x32\x18.src.memory.FactMetadata\x1a\xf8\x01\n\x0bPreferences\x12\x11\n\tlanguages\x18\x01 \x03(\t\x12V\n\x12\x63oding_preferences\x18\x02 \x03(\x0b\x32:.src.memory.UserPersona.Preferences.CodingPreferencesEntry\x12\x1c\n\x14\x64ietary_restrictions\x18\x03 \x03(\t\x12&\n\x04meta\x18\x04 \x01(\x0b\x32\x18.src.memory.FactMetadata\x1a\x38\n\x16\x43odingPreferencesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\xe8\x01\n\x0bWorkContext\x12=\n\x05roles\x18\x01 \x03(\x0b\x32..src.memory.UserPersona.WorkContext.Experience\x12\x16\n\x0e\x65xpertise_tags\x18\x02 \x03(\t\x12&\n\x04meta\x18\x04 \x01(\x0b\x32\x18.src.memory.FactMetadata\x1aZ\n\nExperience\x12\r\n\x05title\x18\x01 \x01(\t\x12\x14\n\x0corganization\x18\x02 \x01(\t\x12\x12\n\nis_current\x18\x03 \x01(\x08\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x1as\n\x10\x46inancialProfile\x12\x19\n\x11net_worth_bracket\x18\x01 \x01(\t\x12\x1c\n\x14investment_interests\x18\x02 \x03(\t\x12&\n\x04meta\x18\x03 \x01(\x0b\x32\x18.src.memory.FactMetadatab\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
+    b'\n\x1esrc/agent/memory/persona.proto\x12\nsrc.memory\x1a\x1fgoogle/protobuf/timestamp.proto"\xea\x01\n\tEducation\x12,\n\x06\x64\x65gree\x18\x01 \x01(\x0e\x32\x1c.src.memory.Education.Degree\x12\r\n\x05major\x18\x02 \x01(\t\x12\x13\n\x0binstitution\x18\x03 \x01(\t\x12\x12\n\nstart_year\x18\x04 \x01(\x05\x12\x10\n\x08\x65nd_year\x18\x05 \x01(\x05\x12\x13\n\x0bmentor_name\x18\x06 \x01(\t"P\n\x06\x44\x65gree\x12\x16\n\x12\x44\x45GREE_UNSPECIFIED\x10\x00\x12\x0c\n\x08\x42\x41\x43HELOR\x10\x01\x12\n\n\x06MASTER\x10\x02\x12\x07\n\x03PHD\x10\x03\x12\x0b\n\x07POSTDOC\x10\x04"@\n\x08Location\x12\x0c\n\x04\x63ity\x18\x01 \x01(\t\x12\x14\n\x0c\x63ountry_code\x18\x02 \x01(\t\x12\x10\n\x08timezone\x18\x03 \x01(\t"\xd4\x02\n\x0c\x46\x61\x63tMetadata\x12\x33\n\x06source\x18\x01 \x01(\x0e\x32#.src.memory.FactMetadata.SourceType\x12.\n\ncreated_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x34\n\x10last_verified_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x18\n\x10\x63onfidence_score\x18\x04 \x01(\x02\x12\x18\n\x10original_chat_id\x18\x05 \x01(\t"u\n\nSourceType\x12\x16\n\x12SOURCE_UNSPECIFIED\x10\x00\x12\x1b\n\x17\x45XPLICIT_USER_STATEMENT\x10\x01\x12\x16\n\x12IMPLICIT_INFERENCE\x10\x02\x12\x1a\n\x16THIRD_PARTY_EXTENSIONS\x10\x03"\x9f\x08\n\x0bUserPersona\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12:\n\x0c\x64\x65mographics\x18\x02 \x01(\x0b\x32$.src.memory.UserPersona.Demographics\x12\x38\n\x0bpreferences\x18\x03 \x01(\x0b\x32#.src.memory.UserPersona.Preferences\x12\x39\n\x0cwork_context\x18\x04 \x01(\x0b\x32#.src.memory.UserPersona.WorkContext\x12\x43\n\x11\x66inancial_profile\x18\x05 \x01(\x0b\x32(.src.memory.UserPersona.FinancialProfile\x1a\xad\x01\n\x0c\x44\x65mographics\x12\x16\n\x0epreferred_name\x18\x01 \x01(\t\x12+\n\rhome_location\x18\x02 \x01(\x0b\x32\x14.src.memory.Location\x12\x30\n\x11\x65\x64ucation_history\x18\x03 \x03(\x0b\x32\x15.src.memory.Education\x12&\n\x04meta\x18\x04 \x01(\x0b\x32\x18.src.memory.FactMetadata\x1a\xf8\x01\n\x0bPreferences\x12\x11\n\tlanguages\x18\x01 \x03(\t\x12V\n\x12\x63oding_preferences\x18\x02 \x03(\x0b\x32:.src.memory.UserPersona.Preferences.CodingPreferencesEntry\x12\x1c\n\x14\x64ietary_restrictions\x18\x03 \x03(\t\x12&\n\x04meta\x18\x04 \x01(\x0b\x32\x18.src.memory.FactMetadata\x1a\x38\n\x16\x43odingPreferencesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x1a\xe8\x01\n\x0bWorkContext\x12=\n\x05roles\x18\x01 \x03(\x0b\x32..src.memory.UserPersona.WorkContext.Experience\x12\x16\n\x0e\x65xpertise_tags\x18\x02 \x03(\t\x12&\n\x04meta\x18\x04 \x01(\x0b\x32\x18.src.memory.FactMetadata\x1aZ\n\nExperience\x12\r\n\x05title\x18\x01 \x01(\t\x12\x14\n\x0corganization\x18\x02 \x01(\t\x12\x12\n\nis_current\x18\x03 \x01(\x08\x12\x13\n\x0b\x64\x65scription\x18\x04 \x01(\t\x1as\n\x10\x46inancialProfile\x12\x19\n\x11net_worth_bracket\x18\x01 \x01(\t\x12\x1c\n\x14investment_interests\x18\x02 \x03(\t\x12&\n\x04meta\x18\x03 \x01(\x0b\x32\x18.src.memory.FactMetadatab\x06proto3'
+)
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'src.agent.memory.persona_pb2', _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, "src.agent.memory.persona_pb2", _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
-  DESCRIPTOR._loaded_options = None
-  _globals['_USERPERSONA_PREFERENCES_CODINGPREFERENCESENTRY']._loaded_options = None
-  _globals['_USERPERSONA_PREFERENCES_CODINGPREFERENCESENTRY']._serialized_options = b'8\001'
-  _globals['_EDUCATION']._serialized_start=80
-  _globals['_EDUCATION']._serialized_end=314
-  _globals['_EDUCATION_DEGREE']._serialized_start=234
-  _globals['_EDUCATION_DEGREE']._serialized_end=314
-  _globals['_LOCATION']._serialized_start=316
-  _globals['_LOCATION']._serialized_end=380
-  _globals['_FACTMETADATA']._serialized_start=383
-  _globals['_FACTMETADATA']._serialized_end=723
-  _globals['_FACTMETADATA_SOURCETYPE']._serialized_start=606
-  _globals['_FACTMETADATA_SOURCETYPE']._serialized_end=723
-  _globals['_USERPERSONA']._serialized_start=726
-  _globals['_USERPERSONA']._serialized_end=1781
-  _globals['_USERPERSONA_DEMOGRAPHICS']._serialized_start=1005
-  _globals['_USERPERSONA_DEMOGRAPHICS']._serialized_end=1178
-  _globals['_USERPERSONA_PREFERENCES']._serialized_start=1181
-  _globals['_USERPERSONA_PREFERENCES']._serialized_end=1429
-  _globals['_USERPERSONA_PREFERENCES_CODINGPREFERENCESENTRY']._serialized_start=1373
-  _globals['_USERPERSONA_PREFERENCES_CODINGPREFERENCESENTRY']._serialized_end=1429
-  _globals['_USERPERSONA_WORKCONTEXT']._serialized_start=1432
-  _globals['_USERPERSONA_WORKCONTEXT']._serialized_end=1664
-  _globals['_USERPERSONA_WORKCONTEXT_EXPERIENCE']._serialized_start=1574
-  _globals['_USERPERSONA_WORKCONTEXT_EXPERIENCE']._serialized_end=1664
-  _globals['_USERPERSONA_FINANCIALPROFILE']._serialized_start=1666
-  _globals['_USERPERSONA_FINANCIALPROFILE']._serialized_end=1781
+    DESCRIPTOR._loaded_options = None
+    _globals["_USERPERSONA_PREFERENCES_CODINGPREFERENCESENTRY"]._loaded_options = None
+    _globals["_USERPERSONA_PREFERENCES_CODINGPREFERENCESENTRY"]._serialized_options = b"8\001"
+    _globals["_EDUCATION"]._serialized_start = 80
+    _globals["_EDUCATION"]._serialized_end = 314
+    _globals["_EDUCATION_DEGREE"]._serialized_start = 234
+    _globals["_EDUCATION_DEGREE"]._serialized_end = 314
+    _globals["_LOCATION"]._serialized_start = 316
+    _globals["_LOCATION"]._serialized_end = 380
+    _globals["_FACTMETADATA"]._serialized_start = 383
+    _globals["_FACTMETADATA"]._serialized_end = 723
+    _globals["_FACTMETADATA_SOURCETYPE"]._serialized_start = 606
+    _globals["_FACTMETADATA_SOURCETYPE"]._serialized_end = 723
+    _globals["_USERPERSONA"]._serialized_start = 726
+    _globals["_USERPERSONA"]._serialized_end = 1781
+    _globals["_USERPERSONA_DEMOGRAPHICS"]._serialized_start = 1005
+    _globals["_USERPERSONA_DEMOGRAPHICS"]._serialized_end = 1178
+    _globals["_USERPERSONA_PREFERENCES"]._serialized_start = 1181
+    _globals["_USERPERSONA_PREFERENCES"]._serialized_end = 1429
+    _globals["_USERPERSONA_PREFERENCES_CODINGPREFERENCESENTRY"]._serialized_start = 1373
+    _globals["_USERPERSONA_PREFERENCES_CODINGPREFERENCESENTRY"]._serialized_end = 1429
+    _globals["_USERPERSONA_WORKCONTEXT"]._serialized_start = 1432
+    _globals["_USERPERSONA_WORKCONTEXT"]._serialized_end = 1664
+    _globals["_USERPERSONA_WORKCONTEXT_EXPERIENCE"]._serialized_start = 1574
+    _globals["_USERPERSONA_WORKCONTEXT_EXPERIENCE"]._serialized_end = 1664
+    _globals["_USERPERSONA_FINANCIALPROFILE"]._serialized_start = 1666
+    _globals["_USERPERSONA_FINANCIALPROFILE"]._serialized_end = 1781
 # @@protoc_insertion_point(module_scope)

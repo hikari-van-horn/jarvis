@@ -17,6 +17,7 @@ from src.agent.core import AgentWithWorkflow
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def agent():
     """Return a AgentWIthWorkflow with LLMs and MemoryStore fully mocked out."""
@@ -52,6 +53,7 @@ def _llm_response(content: str):
 # Routing tests (pure sync, no I/O)
 # ---------------------------------------------------------------------------
 
+
 class TestRouting:
     def test_route_extract_when_triggered(self, agent):
         state = _make_state("")
@@ -84,54 +86,55 @@ class TestRouting:
 # Gatekeeper node — trigger=True cases
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 class TestGatekeeperTriggered:
     async def test_triggers_on_identity_fact(self, agent):
         """Moving to a new city is a persistent life event → trigger=True."""
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"trigger": true, "category": "Identity/Life Events", "reasoning": "User mentioned relocation"}'
-        ))
-        result = await agent._gatekeeper_node(
-            _make_state("老贾，我上周搬到北京了")
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response(
+                '{"trigger": true, "category": "Identity/Life Events", "reasoning": "User mentioned relocation"}'
+            )
         )
+        result = await agent._gatekeeper_node(_make_state("老贾，我上周搬到北京了"))
         assert result["gatekeeper_result"]["trigger"] is True
         assert result["gatekeeper_result"]["category"] == "Identity/Life Events"
 
     async def test_triggers_on_job_change(self, agent):
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"trigger": true, "category": "Identity/Life Events", "reasoning": "New job title disclosed"}'
-        ))
-        result = await agent._gatekeeper_node(
-            _make_state("I just became CTO at a new startup.")
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response(
+                '{"trigger": true, "category": "Identity/Life Events", "reasoning": "New job title disclosed"}'
+            )
         )
+        result = await agent._gatekeeper_node(_make_state("I just became CTO at a new startup."))
         assert result["gatekeeper_result"]["trigger"] is True
 
     async def test_triggers_on_explicit_instruction(self, agent):
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"trigger": true, "category": "Explicit Instructions", "reasoning": "User gave a standing order"}'
-        ))
-        result = await agent._gatekeeper_node(
-            _make_state("Always reply to me in English, never Chinese.")
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response(
+                '{"trigger": true, "category": "Explicit Instructions", "reasoning": "User gave a standing order"}'
+            )
         )
+        result = await agent._gatekeeper_node(_make_state("Always reply to me in English, never Chinese."))
         assert result["gatekeeper_result"]["trigger"] is True
         assert result["gatekeeper_result"]["category"] == "Explicit Instructions"
 
     async def test_triggers_on_long_term_goal(self, agent):
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"trigger": true, "category": "Long-term Goals", "reasoning": "User stated a goal"}'
-        ))
-        result = await agent._gatekeeper_node(
-            _make_state("I'm trying to learn Japanese this year.")
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response(
+                '{"trigger": true, "category": "Long-term Goals", "reasoning": "User stated a goal"}'
+            )
         )
+        result = await agent._gatekeeper_node(_make_state("I'm trying to learn Japanese this year."))
         assert result["gatekeeper_result"]["trigger"] is True
 
     async def test_triggers_on_preference(self, agent):
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"trigger": true, "category": "Preferences", "reasoning": "Dietary preference stated"}'
-        ))
-        result = await agent._gatekeeper_node(
-            _make_state("I became vegan three months ago.")
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response(
+                '{"trigger": true, "category": "Preferences", "reasoning": "Dietary preference stated"}'
+            )
         )
+        result = await agent._gatekeeper_node(_make_state("I became vegan three months ago."))
         assert result["gatekeeper_result"]["trigger"] is True
 
 
@@ -139,35 +142,38 @@ class TestGatekeeperTriggered:
 # Gatekeeper node — trigger=False cases
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 class TestGatekeeperNotTriggered:
     async def test_no_trigger_on_chit_chat(self, agent):
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"trigger": false, "category": null, "reasoning": "Routine greeting"}'
-        ))
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response('{"trigger": false, "category": null, "reasoning": "Routine greeting"}')
+        )
         result = await agent._gatekeeper_node(_make_state("How are you today?"))
         assert result["gatekeeper_result"]["trigger"] is False
         assert result["gatekeeper_result"]["category"] is None
 
     async def test_no_trigger_on_temporary_state(self, agent):
         """Transient states like hunger should not be persisted."""
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"trigger": false, "category": null, "reasoning": "Temporary context"}'
-        ))
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response('{"trigger": false, "category": null, "reasoning": "Temporary context"}')
+        )
         result = await agent._gatekeeper_node(_make_state("I'm really hungry right now."))
         assert result["gatekeeper_result"]["trigger"] is False
 
     async def test_no_trigger_on_emotional_outburst(self, agent):
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"trigger": false, "category": null, "reasoning": "Emotional outburst, not a persistent fact"}'
-        ))
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response(
+                '{"trigger": false, "category": null, "reasoning": "Emotional outburst, not a persistent fact"}'
+            )
+        )
         result = await agent._gatekeeper_node(_make_state("Ugh, I'm so frustrated today!"))
         assert result["gatekeeper_result"]["trigger"] is False
 
     async def test_no_trigger_on_meta_talk_about_ai(self, agent):
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"trigger": false, "category": null, "reasoning": "Meta-talk about the AI"}'
-        ))
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response('{"trigger": false, "category": null, "reasoning": "Meta-talk about the AI"}')
+        )
         result = await agent._gatekeeper_node(_make_state("You answered really fast today."))
         assert result["gatekeeper_result"]["trigger"] is False
 
@@ -176,13 +182,16 @@ class TestGatekeeperNotTriggered:
 # Gatekeeper node — fallback / error handling
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 class TestGatekeeperFallbacks:
     async def test_fallback_on_unparseable_llm_response(self, agent):
         """If the LLM returns something that isn't JSON, default to trigger=False."""
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            "Sorry, I cannot decide right now."  # plain text, no JSON
-        ))
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response(
+                "Sorry, I cannot decide right now."  # plain text, no JSON
+            )
+        )
         result = await agent._gatekeeper_node(_make_state("I live in Shanghai."))
         assert result["gatekeeper_result"]["trigger"] is False
         assert result["gatekeeper_result"]["reasoning"] == "parse error"
@@ -197,9 +206,9 @@ class TestGatekeeperFallbacks:
     async def test_memory_fetch_failure_graceful(self, agent):
         """If SurrealDB is unreachable, user_memory=None and pipeline continues normally."""
         agent.memory_store.connect = AsyncMock(side_effect=ConnectionError("DB unreachable"))
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"trigger": false, "category": null, "reasoning": "chit-chat"}'
-        ))
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response('{"trigger": false, "category": null, "reasoning": "chit-chat"}')
+        )
         result = await agent._gatekeeper_node(_make_state("Hello!"))
         assert result["user_memory"] is None
         assert result["gatekeeper_result"]["trigger"] is False
@@ -208,9 +217,9 @@ class TestGatekeeperFallbacks:
         """The fetched user memory should be passed through in the returned state."""
         stored_memory = {"user_id": "user_123", "demographics": {"preferred_name": "Alice"}}
         agent.memory_store.get_user_memory = AsyncMock(return_value=stored_memory)
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"trigger": false, "category": null, "reasoning": "chit-chat"}'
-        ))
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response('{"trigger": false, "category": null, "reasoning": "chit-chat"}')
+        )
         result = await agent._gatekeeper_node(_make_state("Hi there!"))
         assert result["user_memory"] == stored_memory
 
@@ -218,6 +227,7 @@ class TestGatekeeperFallbacks:
 # ---------------------------------------------------------------------------
 # Gatekeeper node — prompt construction
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 class TestGatekeeperPrompt:

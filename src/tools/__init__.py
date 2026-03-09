@@ -7,6 +7,7 @@ configuration. Tool modules import ``mcp`` from here to register their
 Tool registration is triggered by ``src.tools.server``, which explicitly
 imports each tool module in the correct order before starting the server.
 """
+
 from os import getenv
 
 from mcp.server.fastmcp import FastMCP
@@ -14,8 +15,8 @@ from mcp.server.fastmcp import FastMCP
 # ---------------------------------------------------------------------------
 # Server instance
 # ---------------------------------------------------------------------------
-MCP_HOST =  getenv('MCP_HOST', "127.0.0.1")
-MCP_PORT = int(getenv('MCP_PORT', 8001))
+MCP_HOST = getenv("MCP_HOST", "127.0.0.1")
+MCP_PORT = int(getenv("MCP_PORT", 8001))
 
 mcp = FastMCP(
     "jarvis-tools",

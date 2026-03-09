@@ -8,4 +8,3 @@ class BaseChannel(ABC):
     async def start(self):
         """Start the channel's event loop."""
         pass
-

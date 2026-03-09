@@ -63,6 +63,7 @@ def _safe_apply_patches(doc: dict, patches: list[dict]) -> dict:
       of the patch set is not blocked.
     """
     import copy
+
     result = copy.deepcopy(doc)
     for op in patches:
         try:
@@ -83,6 +84,7 @@ def _safe_apply_patches(doc: dict, patches: list[dict]) -> dict:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_record_id(user_id: str) -> RecordID:
     """Return a SurrealDB RecordID for a given user."""
@@ -111,6 +113,7 @@ def _strip_record_ids(obj):
 # ---------------------------------------------------------------------------
 # Store class
 # ---------------------------------------------------------------------------
+
 
 class MemoryStore:
     """Async SurrealDB client wrapper for user-persona CRUD operations.
@@ -150,9 +153,7 @@ class MemoryStore:
         await self._db.signin({"username": SURREAL_USER, "password": SURREAL_PASS})
         await self._db.use(SURREAL_NS, SURREAL_DB)
         self._connected = True
-        logger.info(
-            "MemoryStore connected to SurrealDB [ns=%s db=%s]", SURREAL_NS, SURREAL_DB
-        )
+        logger.info("MemoryStore connected to SurrealDB [ns=%s db=%s]", SURREAL_NS, SURREAL_DB)
 
     async def close(self) -> None:
         try:
@@ -181,6 +182,7 @@ class MemoryStore:
         Safe to call on every startup — all statements use ``IF NOT EXISTS``.
         """
         import os
+
         schema_path = os.path.join(os.path.dirname(__file__), "schema.surql")
         try:
             with open(schema_path, "r", encoding="utf-8") as fh:
@@ -239,9 +241,7 @@ class MemoryStore:
         Returns the updated document.
         """
         if not patches:
-            logger.debug(
-                "apply_patches: empty patch list for user_id=%s, skipping", user_id
-            )
+            logger.debug("apply_patches: empty patch list for user_id=%s, skipping", user_id)
             return await self.get_user_memory(user_id) or {}
 
         current = await self.get_user_memory(user_id)
@@ -255,6 +255,7 @@ class MemoryStore:
         # Merge with the skeleton so intermediate paths always exist.
         # Existing values win; skeleton only fills in missing keys.
         import copy
+
         base = copy.deepcopy(_PERSONA_SKELETON)
         for key, val in current.items():
             base[key] = val
@@ -274,7 +275,5 @@ class MemoryStore:
         existing = await self.get_user_memory(user_id)
         if existing:
             return existing
-        logger.info(
-            "ensure_user_memory: initialising memory for user_id=%s", user_id
-        )
+        logger.info("ensure_user_memory: initialising memory for user_id=%s", user_id)
         return await self.upsert_user_memory(user_id, default)

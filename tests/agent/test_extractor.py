@@ -18,6 +18,7 @@ from src.agent.core import AgentWithWorkflow
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def agent():
     """Return a AgentWIthWorkflow with LLMs and MemoryStore fully mocked out."""
@@ -52,6 +53,7 @@ def _llm_response(content: str):
 # Valid patch application
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 class TestExtractorPatchApplication:
     async def test_applies_patches_from_valid_llm_response(self, agent):
@@ -59,9 +61,7 @@ class TestExtractorPatchApplication:
         patches = [
             {"op": "add", "path": "/demographics/location/current", "value": "Beijing"},
         ]
-        agent.llm_precise.ainvoke = AsyncMock(
-            return_value=_llm_response(json.dumps(patches))
-        )
+        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(json.dumps(patches)))
         agent.memory_store.apply_patches = AsyncMock(
             return_value={"user_id": "user_123", "demographics": {"location": {"current": "Beijing"}}}
         )
@@ -76,11 +76,12 @@ class TestExtractorPatchApplication:
             {"op": "replace", "path": "/work_context/roles/0/is_current", "value": False},
             {"op": "add", "path": "/preferences/daily_life/hobbies/-", "value": "fishing"},
         ]
-        agent.llm_precise.ainvoke = AsyncMock(
-            return_value=_llm_response(json.dumps(patches))
-        )
-        updated = {"user_id": "user_123", "work_context": {"roles": [{"is_current": False}]},
-                   "preferences": {"daily_life": {"hobbies": ["fishing"]}}}
+        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(json.dumps(patches)))
+        updated = {
+            "user_id": "user_123",
+            "work_context": {"roles": [{"is_current": False}]},
+            "preferences": {"daily_life": {"hobbies": ["fishing"]}},
+        }
         agent.memory_store.apply_patches = AsyncMock(return_value=updated)
 
         result = await agent._extractor_node(_make_state("I retired and took up fishing."))
@@ -115,6 +116,7 @@ class TestExtractorPatchApplication:
 # Empty / no-op patch cases
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 class TestExtractorEmptyPatches:
     async def test_skips_apply_when_llm_returns_empty_list(self, agent):
@@ -146,13 +148,12 @@ class TestExtractorEmptyPatches:
 # Fallback / error-handling
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 class TestExtractorFallbacks:
     async def test_fallback_on_invalid_json(self, agent):
         """Non-JSON LLM output should result in no patches and current memory returned."""
-        agent.llm_precise.ainvoke = AsyncMock(
-            return_value=_llm_response("I cannot extract anything.")
-        )
+        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response("I cannot extract anything."))
         current_memory = {"user_id": "user_123"}
 
         result = await agent._extractor_node(_make_state("blah", user_memory=current_memory))
@@ -161,9 +162,11 @@ class TestExtractorFallbacks:
 
     async def test_fallback_on_object_instead_of_array(self, agent):
         """If the LLM returns a JSON object (not array), treat as no-patches."""
-        agent.llm_precise.ainvoke = AsyncMock(return_value=_llm_response(
-            '{"op": "add", "path": "/x", "value": "y"}'  # object, not array
-        ))
+        agent.llm_precise.ainvoke = AsyncMock(
+            return_value=_llm_response(
+                '{"op": "add", "path": "/x", "value": "y"}'  # object, not array
+            )
+        )
         current_memory = {"user_id": "user_123"}
         result = await agent._extractor_node(_make_state("blah", user_memory=current_memory))
         agent.memory_store.apply_patches.assert_not_called()
@@ -192,6 +195,7 @@ class TestExtractorFallbacks:
 # ---------------------------------------------------------------------------
 # Prompt construction
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 class TestExtractorPrompt:

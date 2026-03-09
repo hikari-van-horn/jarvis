@@ -42,8 +42,8 @@ logger = logging.getLogger("main")
 # Ensure the project root is on PYTHONPATH so ``src.*`` imports work.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-MCP_HOST =  os.getenv('MCP_HOST', "127.0.0.1")
-MCP_PORT = int(os.getenv('MCP_PORT', 8001))
+MCP_HOST = os.getenv("MCP_HOST", "127.0.0.1")
+MCP_PORT = int(os.getenv("MCP_PORT", 8001))
 MCP_URL = f"http://{MCP_HOST}:{MCP_PORT}"
 
 
@@ -92,10 +92,7 @@ async def start_mcp_server() -> None:
         except Exception:
             pass
 
-    logger.warning(
-        "MCP server did not respond within 10 s — continuing anyway. "
-        "Tool calls may fail until it is ready."
-    )
+    logger.warning("MCP server did not respond within 10 s — continuing anyway. Tool calls may fail until it is ready.")
 
 
 # ---------------------------------------------------------------------------
@@ -111,9 +108,7 @@ async def run_extensions(ext_names: list[str]) -> None:
         module_name = f"src.channels.{ext_name}"
         try:
             ext_module = importlib.import_module(module_name)
-            if hasattr(ext_module, "start") and asyncio.iscoroutinefunction(
-                ext_module.start
-            ):
+            if hasattr(ext_module, "start") and asyncio.iscoroutinefunction(ext_module.start):
                 logger.info("Starting extension: %s", ext_name)
                 tasks.append(asyncio.create_task(ext_module.start()))
             else:
@@ -131,8 +126,7 @@ async def run_extensions(ext_names: list[str]) -> None:
         await asyncio.gather(*tasks)
     else:
         logger.info(
-            "No extensions running. MCP server is active on %s. "
-            "Press Ctrl+C to quit.",
+            "No extensions running. MCP server is active on %s. Press Ctrl+C to quit.",
             MCP_URL,
         )
         # Keep the event loop alive so the daemon MCP thread stays up.
@@ -179,9 +173,7 @@ def main() -> None:
     ext_names: list[str] = []
     for arg in sys.argv[1:]:
         if arg.startswith("exts="):
-            ext_names = [
-                e.strip() for e in arg[len("exts="):].split(",") if e.strip()
-            ]
+            ext_names = [e.strip() for e in arg[len("exts=") :].split(",") if e.strip()]
 
     try:
         asyncio.run(_main(ext_names))

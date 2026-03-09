@@ -35,6 +35,7 @@ def _expand_env(value: str) -> str:
 # Provider config models
 # ---------------------------------------------------------------------------
 
+
 class RestProviderConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Literal["rest"] = "rest"
@@ -73,6 +74,7 @@ def _parse_provider_config(raw: dict[str, Any]) -> RestProviderConfig | GoogleGe
 # Provider builder
 # ---------------------------------------------------------------------------
 
+
 def _build_provider(cfg: RestProviderConfig | GoogleGenAIProviderConfig) -> BaseChatModel:
     if isinstance(cfg, RestProviderConfig):
         api_key = _expand_env(cfg.api_key) or "dummy"
@@ -100,10 +102,7 @@ def load_providers() -> dict[str, BaseChatModel]:
     with open(_INFRA_TOML, "rb") as f:
         config = tomllib.load(f)
 
-    return {
-        name: _build_provider(_parse_provider_config(raw))
-        for name, raw in config.get("providers", {}).items()
-    }
+    return {name: _build_provider(_parse_provider_config(raw)) for name, raw in config.get("providers", {}).items()}
 
 
 def get_provider(name: str) -> BaseChatModel:

@@ -28,6 +28,7 @@ from src.agent.providers import (
 # _expand_env
 # ---------------------------------------------------------------------------
 
+
 class TestExpandEnv:
     def test_replaces_known_variable(self, monkeypatch):
         monkeypatch.setenv("MY_KEY", "secret")
@@ -52,6 +53,7 @@ class TestExpandEnv:
 # ---------------------------------------------------------------------------
 # _parse_provider_config
 # ---------------------------------------------------------------------------
+
 
 class TestParseProviderConfig:
     def test_defaults_to_rest_when_type_missing(self):
@@ -84,21 +86,25 @@ class TestParseProviderConfig:
 
     def test_invalid_type_raises_validation_error(self):
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError):
             _parse_provider_config({"type": "grpc"})
 
     def test_extra_fields_rejected(self):
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError):
             _parse_provider_config({"type": "rest", "unknown_field": "value"})
 
     def test_temperature_above_range_rejected(self):
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError):
             _parse_provider_config({"type": "rest", "temperature": 3.0})
 
     def test_temperature_below_range_rejected(self):
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError):
             _parse_provider_config({"type": "rest", "temperature": -0.1})
 
@@ -106,6 +112,7 @@ class TestParseProviderConfig:
 # ---------------------------------------------------------------------------
 # _build_provider
 # ---------------------------------------------------------------------------
+
 
 class TestBuildProvider:
     def test_rest_returns_chat_openai(self, monkeypatch):
@@ -170,8 +177,7 @@ def fake_toml(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
     monkeypatch.setenv("OPENAI_BASE_URL", "https://api.deepseek.com/v1")
     monkeypatch.setenv("GOOGLE_API_KEY", "gk-fake")
-    with patch("builtins.open", mock_open(read_data=_FAKE_TOML)), \
-         patch("tomllib.load", return_value=parsed):
+    with patch("builtins.open", mock_open(read_data=_FAKE_TOML)), patch("tomllib.load", return_value=parsed):
         yield
 
 
@@ -203,8 +209,7 @@ class TestLoadProviders:
 
     def test_empty_providers_returns_empty_dict(self, monkeypatch):
         monkeypatch.setenv("OPENAI_API_KEY", "sk-fake")
-        with patch("builtins.open", mock_open(read_data=b"")), \
-             patch("tomllib.load", return_value={}):
+        with patch("builtins.open", mock_open(read_data=b"")), patch("tomllib.load", return_value={}):
             result = load_providers()
         assert result == {}
 
@@ -212,6 +217,7 @@ class TestLoadProviders:
 # ---------------------------------------------------------------------------
 # get_provider
 # ---------------------------------------------------------------------------
+
 
 class TestGetProvider:
     def test_returns_correct_provider(self, fake_toml):

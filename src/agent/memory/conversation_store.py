@@ -54,6 +54,7 @@ DEFAULT_AGENT_ID: str = "jarvis"
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _role_to_langchain(role: str, content: str) -> BaseMessage:
     if role == "user":
         return HumanMessage(content=content)
@@ -65,6 +66,7 @@ def _role_to_langchain(role: str, content: str) -> BaseMessage:
 # ---------------------------------------------------------------------------
 # Store
 # ---------------------------------------------------------------------------
+
 
 class ConversationStore:
     """Async SurrealDB client for short-term (conversation) memory.
@@ -115,9 +117,7 @@ class ConversationStore:
     @property
     def db(self) -> AsyncSurreal:
         if self._db is None or not self._connected:
-            raise RuntimeError(
-                "ConversationStore is not connected. Call connect() first."
-            )
+            raise RuntimeError("ConversationStore is not connected. Call connect() first.")
         return self._db
 
     # ------------------------------------------------------------------
@@ -151,7 +151,7 @@ class ConversationStore:
         self,
         user_id: str,
         platform: str,
-        agent_id: str = 'jarvis',
+        agent_id: str = "jarvis",
         metadata: dict | None = None,
         gap_hours: int = NEW_SESSION_GAP_HOURS,
     ) -> RecordID:
@@ -227,9 +227,7 @@ class ConversationStore:
         )
         new_row = _first_row(new_rows)
         if not new_row:
-            raise RuntimeError(
-                f"ConversationStore: failed to create conversation for user_id={user_id}"
-            )
+            raise RuntimeError(f"ConversationStore: failed to create conversation for user_id={user_id}")
         conv_id = new_row["id"]
         logger.info(
             "get_or_create_conversation: created new session %s for user_id=%s platform=%s",
@@ -363,23 +361,25 @@ class ConversationStore:
         # Walk newest → oldest, greedily accumulate messages that fit in the budget.
         kept: list[dict] = []
         total_bytes = 0
-        for msg in reversed(raw):          # newest first
+        for msg in reversed(raw):  # newest first
             # Estimate byte size: role + ": " + content, UTF-8 encoded.
             chunk = f"{msg['role']}: {msg['content']}"
             size = len(chunk.encode("utf-8"))
             if total_bytes + size > context_size_bytes:
-                break                      # FIFO: stop; everything older is evicted
+                break  # FIFO: stop; everything older is evicted
             kept.append(msg)
             total_bytes += size
 
-        kept.reverse()                     # restore chronological order (oldest → newest)
+        kept.reverse()  # restore chronological order (oldest → newest)
 
         evicted = len(raw) - len(kept)
         if evicted:
             logger.debug(
-                "load_as_langchain_messages: evicted %d old message(s) "
-                "(budget=%d bytes, used=%d bytes, conv=%s)",
-                evicted, context_size_bytes, total_bytes, conversation_id,
+                "load_as_langchain_messages: evicted %d old message(s) (budget=%d bytes, used=%d bytes, conv=%s)",
+                evicted,
+                context_size_bytes,
+                total_bytes,
+                conversation_id,
             )
 
         return [_role_to_langchain(m["role"], m["content"]) for m in kept]
@@ -429,6 +429,7 @@ class ConversationStore:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _first_row(result: Any) -> dict | None:
     """Extract the first row from a SurrealDB query result."""
